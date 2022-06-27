@@ -59,7 +59,7 @@ export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || pr
 WINUSER=$(wslvar USERNAME)
 
 # My custom aliases 
-alias mnt="cd /mnt/c/Users/$WINUSER"
+alias mnt="cd /mnt/c/Users/'$WINUSER'"
 alias dev="cd /home/`whoami`/projects"
 alias home="cd /home/`whoami`"
 alias .="cd .."
