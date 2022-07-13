@@ -66,6 +66,7 @@ alias .="cd .."
 alias ..="cd ../.."
 alias ...="cd ../../.."
 alias lsa="ls -a"
+alias reload="source ~/.zshrc && echo 'reloading...'"
 
 function cdls() {
   cd "$@" && ls;
