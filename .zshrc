@@ -78,3 +78,5 @@ function cdcode() {
 function show() {
   explorer.exe "$@"
 }
+export PNPM_HOME="/home/raine/.local/share/pnpm"
+export PATH="$PNPM_HOME:$PATH"
