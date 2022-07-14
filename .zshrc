@@ -66,6 +66,7 @@ alias .="cd .."
 alias ..="cd ../.."
 alias ...="cd ../../.."
 alias lsa="ls -a"
+alias reload="source ~/.zshrc && echo 'reloading...'"
 
 function cdls() {
   cd "$@" && ls;
@@ -78,5 +79,7 @@ function cdcode() {
 function show() {
   explorer.exe "$@"
 }
+
+# My paths
 export PNPM_HOME="/home/raine/.local/share/pnpm"
 export PATH="$PNPM_HOME:$PATH"
