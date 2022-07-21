@@ -67,7 +67,45 @@ alias ..="cd ../.."
 alias ...="cd ../../.."
 alias lsa="ls -a"
 alias reload="source ~/.zshrc && echo 'reloading...'"
+alias c="clear"
 
+# Git aliases
+function nb() {
+  git checkout -b "$@"
+}
+
+function db() {
+  git branch -D "$@"
+} 
+
+function co() {
+  git checkout "$@"
+}
+
+function push() {
+  OPTION=${1:-''}
+  if [ "$OPTION" = "new" ]; then 
+    BRANCH=`git rev-parse --abbrev-ref HEAD`
+    git push --set-upstream origin $BRANCH
+  else 
+    git push
+  fi
+}
+
+function add() {
+  git add "$@"
+  git status
+}
+
+function commit() {
+  git commit -m "$@"
+}
+
+alias pull="git pull"
+alias bls="git branch -l"
+alias status="git status"
+
+# Misc functions
 function cdls() {
   cd "$@" && ls;
 }
