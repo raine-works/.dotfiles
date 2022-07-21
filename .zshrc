@@ -117,3 +117,7 @@ function cdcode() {
 function show() {
   explorer.exe "$@"
 }
+
+# My paths
+export PNPM_HOME="/home/raine/.local/share/pnpm"
+export PATH="$PNPM_HOME:$PATH"
