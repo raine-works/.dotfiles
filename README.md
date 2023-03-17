@@ -1,7 +1,7 @@
 Install 
 
-    wget -O - https://github.com/raine-works/.dotfiles/blob/master/scripts/install.sh | bash
+    git clone https://github.com/raine-works/.dotfiles.git ~/.dotfiles | bash ~/.dotfiles/scripts/install.sh
 
 Uninstall
 
-    wget -O - https://github.com/raine-works/.dotfiles/blob/master/scripts/uninstall.sh | bash
+    bash ~/.dotfiles/scripts/uninstall.sh
