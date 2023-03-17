@@ -25,3 +25,4 @@ else
 fi
 
 # Remove dotfiles package from system
+rm -rf ~/.dotfiles
