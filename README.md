@@ -1,7 +1,7 @@
 Install 
 
-    wget -O - https://raw.githubusercontent.com/raine-works/.dotfiles/master/scripts/install | bash
+    wget -O - https://github.com/raine-works/.dotfiles/blob/master/scripts/install.sh | bash
 
 Uninstall
 
-    wget -O - https://raw.githubusercontent.com/raine-works/.dotfiles/master/scripts/uninstall | bash
+    wget -O - https://github.com/raine-works/.dotfiles/blob/master/scripts/uninstall.sh | bash
