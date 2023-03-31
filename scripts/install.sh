@@ -12,3 +12,4 @@ if [[ -f "$BASHRC" ]]; then
 fi
 
 ln -s ~/.dotfiles/configs/.bashrc ~/.bashrc -f
+ln -s ~/.dotfiles/configs/.gitconfig ~/.gitconfig -f

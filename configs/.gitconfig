@@ -1,0 +1,5 @@
+[user]
+	email = github@raineworks.com
+	name = raineworks
+[push]
+	autoSetupRemote = true
