@@ -3,3 +3,5 @@
 	name = raineworks
 [push]
 	autoSetupRemote = true
+[init]
+	templatedir = ~/.git-templates

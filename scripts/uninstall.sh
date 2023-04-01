@@ -1,5 +1,6 @@
-# Restore bashrc and remove dotfiles package
+#!/bin/bash
 
+# Restore bashrc and remove dotfiles package
 BASH_BACKUPS=~/.bash_backups
 if [[ ! -d "$BASH_BACKUPS" ]]; then 
     # Reset bashrc to default
