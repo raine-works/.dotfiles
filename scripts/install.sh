@@ -32,6 +32,7 @@ installGitCOnfig() {
 
     GIT_TEMPLATES=~/.git-templates
     GIT_HOOKS=~/.git-templates/hooks
+    GHOST_PROJECT=~/.ghost
 
     if [[ ! -d "$GIT_TEMPLATES" ]]; then
         mkdir -p ~/.git-templates/hooks
@@ -43,9 +44,32 @@ installGitCOnfig() {
 
     ln -s ~/.dotfiles/configs/.gitconfig ~/.gitconfig -f
     ln -s ~/.dotfiles/configs/git-hooks/* ~/.git-templates/hooks -f
+    
+    # Install ghost project if not already installed
+    if [[ ! -d "$GHOST_PROJECT" ]]; then
+        echo "Installing ghost project..."
+        git clone git@github.com:raine-works/.ghost.git
+    fi
+}
+
+# Install tools
+setupTools () {
+
+    # Install github cli
+    type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
+    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg 
+    sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null 
+    sudo apt update 
+    sudo apt install gh -y
+
+    # Install volta
+    curl https://get.volta.sh | bash
 }
 
 # Start here
+setupTools
+
 while true; do
     read -p "Do you wish to overwrite your bashrc config? " yn
     case $yn in

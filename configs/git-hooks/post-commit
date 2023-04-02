@@ -1,5 +1,4 @@
 #!/bin/sh
 
-echo $(git log -1 --format=format:%h)
-
-# Add other post-commit hooks 
+#Invoke ghost project script
+bash ~/.ghost/scripts/hook.sh $(git remote -v  | sed -rn '1s#.*/(.*)\.git.*#\1#p') $(git log -1 --format=format:%h)
