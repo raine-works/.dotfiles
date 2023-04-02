@@ -3,6 +3,6 @@
 # Copy last commit hash to clipboard on commit
 git log -1 --format=format:%h | pbcopy
 
-echo "This is running post commit"
+echo $(log -1 --format=format:%h)
 
 # Add other post-commit hooks 

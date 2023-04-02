@@ -27,6 +27,9 @@ installBashrc() {
 
 # Install global git config and hooks
 installGitCOnfig() {
+    echo "Installing global git config..."
+    loading 1
+
     GIT_TEMPLATES=~/.git-templates
     GIT_HOOKS=~/.git-templates/hooks
 
@@ -39,12 +42,18 @@ installGitCOnfig() {
     fi
 
     ln -s ~/.dotfiles/configs/.gitconfig ~/.gitconfig -f
-    ln -s ~/.dotfiles/configs/git-hooks/post-commit ~/.git-templates/hooks/post-commit -f
+    ln -s ~/.dotfiles/configs/git-hooks/* ~/.git-templates/hooks -f
 }
 
 # Start here
-backupBashrc
-installBashrc
+while true; do
+    read -p "Do you wish to overwrite your bashrc config? " yn
+    case $yn in
+        [Yy]* ) backupBashrc && installBashrc; break;;
+        [Nn]* ) exit;;
+        * ) echo "Please answer yes or no.";;
+    esac
+done
 
 while true; do
     read -p "Do you wish to overwrite your global git config this? " yn
