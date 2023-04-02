@@ -1,4 +1,4 @@
 #!/bin/sh
 
 #Invoke ghost project script
-bash ~/.ghost/scripts/hook.sh $(git remote -v  | sed -rn '1s#.*/(.*)\.git.*#\1#p') $(git log -1 --format=format:%h)
+bash ~/.ghost/scripts/hook.sh $(git remote -v | sed -rn '1s#.*/(.*)\.git.*#\1#p') $(git log --format="%H" -n 1) $(git log -1 --pretty=%B)
