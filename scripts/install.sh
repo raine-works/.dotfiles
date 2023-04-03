@@ -48,7 +48,7 @@ installGitCOnfig() {
     # Install ghost project if not already installed
     if [[ ! -d "$GHOST_PROJECT" ]]; then
         echo "Installing ghost project..."
-        git clone git@github.com:raine-works/.ghost.git
+        git clone git@github.com:raine-works/.ghost.git ~/.ghost
     fi
 }
 
