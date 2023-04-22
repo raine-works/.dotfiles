@@ -83,6 +83,9 @@ WIN_USER=$(wslvar USERNAME)
 alias ll='ls -alF'
 alias la='ls -A'
 alias l='ls -CF'
+alias .='../'
+alias ..='../../'
+alias ...='../../../'
 alias home='cd ~/'
 
 if [[ $WINUSER ]]; then
