@@ -87,8 +87,10 @@ alias .='cd ../'
 alias ..='cd ../../'
 alias ...='cd ../../../'
 alias home='cd ~/'
+alias repos='cd ~/repositories'
+alias restart='source ~/.bashrc'
 
-if [[ $WINUSER ]]; then
+if [[ $WIN_USER ]]; then
     alias mnt='cd /mnt/c/Users/$WIN_USER'
 fi
 
