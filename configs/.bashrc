@@ -116,7 +116,7 @@ export PATH="$VOLTA_HOME/bin:$PATH"
 export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 export PATH=$PATH:$JAVA_HOME/bin
 
-export ANDROID_HOME=$HOME/Android
+export ANDROID_HOME=$HOME/.android_sdk
 export PATH=$PATH:$ANDROID_HOME/tools
 export PATH=$PATH:$ANDROID_HOME/platform-tools
 

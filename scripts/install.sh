@@ -2,6 +2,9 @@
 
 source ~/.dotfiles/scripts/helpers.sh
 
+sudo apt update
+sudo apt install zip unzip
+
 # Make bashrc backup
 backupBashrc() {
     echo "Making bashrc backup..."
@@ -67,6 +70,22 @@ setupTools () {
     curl https://get.volta.sh | bash
 }
 
+# Setup Android studio SDK
+setupAndroidStudio () {
+
+    wget https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip
+    unzip sdk-tools-linux-4333796.zip -d ~/.android_sdk
+    rm ~/sdk-tools-linux-4333796.zip
+    sudo apt install -y lib32z1 openjdk-8-jdk
+    ~/.android_sdk/tools/bin/./sdkmanager --install "platform-tools" "platforms;android-29" "build-tools;29.0.2"
+    ~/.android_sdk/tools/bin/./sdkmanager --update
+    curl -s "https://get.sdkman.io" | bash
+    source "$HOME/.sdkman/bin/sdkman-init.sh"
+
+    read -p "What version of Gradle do you wish to install?"
+    sdk install gradle $REPLY
+}
+
 # Start here
 setupTools
 
@@ -74,7 +93,7 @@ while true; do
     read -p "Do you wish to overwrite your bashrc config? " yn
     case $yn in
         [Yy]* ) backupBashrc && installBashrc; break;;
-        [Nn]* ) exit;;
+        [Nn]* ) break;;
         * ) echo "Please answer yes or no.";;
     esac
 done
@@ -83,7 +102,20 @@ while true; do
     read -p "Do you wish to overwrite your global git config this? " yn
     case $yn in
         [Yy]* ) installGitCOnfig; break;;
-        [Nn]* ) exit;;
+        [Nn]* ) break;;
         * ) echo "Please answer yes or no.";;
     esac
 done
+
+while true; do
+    read -p "Do you wish to install Android Studio SDK for WSL? " yn
+    case $yn in
+        [Yy]* ) setupAndroidStudio; break;;
+        [Nn]* ) break;;
+        * ) echo "Please answer yes or no.";;
+    esac
+done
+
+# Restart shell
+echo "Restarting shell..."
+source ~/.bashrc
