@@ -111,3 +111,18 @@ fi
 #fi
 export VOLTA_HOME="$HOME/.volta"
 export PATH="$VOLTA_HOME/bin:$PATH"
+
+# Required for using Android studio form WSL2
+export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+export PATH=$PATH:$JAVA_HOME/bin
+
+export ANDROID_HOME=$HOME/Android
+export PATH=$PATH:$ANDROID_HOME/tools
+export PATH=$PATH:$ANDROID_HOME/platform-tools
+
+#THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!
+export SDKMAN_DIR="$HOME/.sdkman"
+[[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
+
+export WSL_HOST=$(tail -1 /etc/resolv.conf | cut -d' ' -f2)
+export ADB_SERVER_SOCKET=tcp:$WSL_HOST:5037
