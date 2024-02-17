@@ -10,9 +10,13 @@ sudo apt install stow
 # Install nerd font
 curl -L https://github.com/ryanoasis/nerd-fonts/releases/download/v3.1.1/JetBrainsMono.zip > /tmp/JetBrainsMono.zip
 curl -L https://github.com/ryanoasis/nerd-fonts/releases/download/v3.1.1/NerdFontsSymbolsOnly.zip > /tmp/NerdFontsSymbolsOnly.zip
-[ -d ~/.local/share/fonts ] || mkdir -p ~/.local/share/fonts
-unzip -o /tmp/JetBrainsMono.zip -d ~/.local/share/fonts
-unzip -o /tmp/NerdFontsSymbolsOnly.zip -d ~/.local/share/fonts
+sudo unzip -o /tmp/JetBrainsMono.zip -d /usr/local/share/fonts
+sudo unzip -o /tmp/NerdFontsSymbolsOnly.zip -d /usr/local/share/fonts
+if [[ $(grep -i Microsoft /proc/version) ]]; then
+    sudo chmod a+w /mnt/c/Windows/Fonts
+    sudo  unzip -o /tmp/JetBrainsMono.zip -d /mnt/c/Windows/Fonts
+    sudo  unzip -o /tmp/NerdFontsSymbolsOnly.zip -d /mnt/c/Windows/Fonts
+fi
 rm -rf /tmp/JetBrainsMono.zip
 rm -rf /tmp/NerdFontsSymbolsOnly.zip
 fc-cache -fv
