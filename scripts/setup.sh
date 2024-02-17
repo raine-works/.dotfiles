@@ -2,9 +2,7 @@
 
 # Clone dotfiles and run install
 echo "Setting up repository..."
-sudo git clone https://github.com/raine-works/.dotfiles.git .dotfiles_temp
-sudo mv .dotfiles_temp ~/.dotfiles
-sudo rm -rf .dotfiles_temp
+git clone https://github.com/raine-works/.dotfiles.git
 bash ~/.dotfiles/scripts/install.sh
 
 # Backup files
