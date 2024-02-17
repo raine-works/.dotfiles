@@ -1,0 +1,16 @@
+[credential "https://github.com"]
+	helper = !/usr/bin/gh auth git-credential
+[credential "https://gist.github.com"]
+	helper = !/usr/bin/gh auth git-credential
+[user]
+	email = mail@raineworks.com
+	name = raineworks
+[push]
+	autoSetupRemote = true
+[alias]
+	unstage = reset HEAD --
+	co = checkout
+	br = branch
+	ci = commit
+	st = status
+	last = log -1 HEAD

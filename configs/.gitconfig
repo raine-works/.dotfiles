@@ -1,7 +1,0 @@
-[user]
-	email = github@raineworks.com
-	name = raineworks
-[push]
-	autoSetupRemote = true
-[init]
-	templatedir = ~/.git-templates
