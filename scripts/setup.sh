@@ -1,10 +1,14 @@
 #!/bin/bash
 
 # Clone dotfiles and run install
-git clone https://github.com/raine-works/.dotfiles.git ~/.dotfiles
+echo "Setting up repository..."
+git clone https://github.com/raine-works/.dotfiles.git /tmp/dotfiles
+mv /tmp/dotfiles ~/.dotfiles
+rm -rf /tmp/dotfiles
 bash ~/.dotfiles/scripts/install.sh
 
 # Backup files
+echo "Backing up dotfiles"
 mkdir ~/.dotfiles_backup
 cp ~/.bashrc ~/.dotfiles_backup/.bashrc
 cp ~/.gitconfig ~/.dotfiles_backup/.gitconfig
