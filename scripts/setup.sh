@@ -2,10 +2,10 @@
 
 sudo apt update
 sudo apt upgrade -y
-sudo apt install zip
-sudo apt install unzip
+sudo apt install zip -y
+sudo apt install unzip -y
 sudo apt install fontconfig -y
-sudo apt install stow
+sudo apt install stow -y
 
 # Install nerd font
 curl -L https://github.com/ryanoasis/nerd-fonts/releases/download/v3.1.1/JetBrainsMono.zip > /tmp/JetBrainsMono.zip
