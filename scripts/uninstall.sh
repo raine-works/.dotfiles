@@ -4,7 +4,7 @@ echo "Unsyncing dotfiles..."
 stow --delete . --dir=/home/$USER/.dotfiles --target=/home/$USER
 
 echo "Removing files..."
-sudo apt remove stow
+sudo apt remove stow -y
 
 rm ~/.bashrc
 rm ~/.gitconfig
