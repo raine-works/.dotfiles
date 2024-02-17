@@ -1,4 +1,4 @@
 #!/bin/bash
 
-echo "syncing dotfiles..."
+echo "Syncing dotfiles..."
 stow . --dir=/home/$USER/.dotfiles --target=/home/$USER
