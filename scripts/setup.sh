@@ -10,6 +10,7 @@ echo "Backing up dotfiles"
 mkdir ~/.dotfiles_backup
 cp ~/.bashrc ~/.dotfiles_backup/.bashrc
 cp ~/.gitconfig ~/.dotfiles_backup/.gitconfig
+rm ~/.bashrc ~/.gitconfig
 
 # Sync dotfiles to user directory
 bash ~/.dotfiles/scripts/sync.sh
