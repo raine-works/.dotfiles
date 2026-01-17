@@ -33,8 +33,18 @@ zstyle ':completion:*' menu select
 [ -s "/Users/rainepetersen/.bun/_bun" ] && source "/Users/rainepetersen/.bun/_bun"
 [ -s "$(brew --prefix nvm)/nvm.sh" ] && . "$(brew --prefix nvm)/nvm.sh"
 
-# 5. ALIASES
+# 5. FUNCTIONS
 # ---------------------------------------------------------
+fzf-alias-finder() {
+  local result=$(alias | fzf --no-sort --ansi | cut -d'=' -f1 | sed 's/alias //')
+  if [[ -n "$result" ]]; then
+    print -z -- "$result"
+  fi
+}
+
+# 6. ALIASES
+# ---------------------------------------------------------
+alias aliases='fzf-alias-finder'
 alias refresh='source ~/.zshrc'
 alias home='cd ~/'
 alias cl='clear'
@@ -71,6 +81,6 @@ alias klns='kubectl get pods -A | fzf --header-lines=1 --header "Select Pod (All
 alias kdel="kubectl delete"
 alias kdelp='kubectl get pods | fzf -m --header "Select Pods to Delete" --header-lines=1 | awk "{print \$1}" | xargs kubectl delete pod'
 
-# 6. PROMPT (Must be last)
+# 7. PROMPT (Must be last)
 # ---------------------------------------------------------
 eval "$(starship init zsh)"
