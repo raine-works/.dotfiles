@@ -45,6 +45,7 @@ Before you begin, ensure you have the following installed:
     stow ghostty
     stow zed
     stow starship
+    stow gitconfig
     ```
 
     For example, `stow zsh` will create a symlink for `~/.zshrc` pointing to `~/.dotfiles/zsh/.zshrc`.
@@ -59,3 +60,4 @@ This repository includes configurations for:
 *   **`ghostty/`**: Ghostty terminal emulator configuration (`.config/ghostty/config`).
 *   **`zed/`**: Zed editor settings (`.config/zed/settings.json`).
 *   **`starship/`**: Starship prompt configuration (`.config/starship/starship.toml`).
+*   **`gitconfig/`**: Git configuration (`.gitconfig`).

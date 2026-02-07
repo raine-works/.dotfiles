@@ -1,0 +1,94 @@
+[user]
+	email = raine@raineworks.com
+	name = raine-works
+
+[core]
+    # Use VS Code as the default editor (flags wait for file close)
+    # Windows users might need the full path to 'code'
+    editor = code --wait
+
+    # Global ignore file (create this file at ~/.gitignore_global)
+    excludesfile = ~/.gitignore_global
+
+    # Handle line endings correctly
+    # Use 'input' for Mac/Linux, 'true' for Windows
+    autocrlf = input
+
+    # Better colors for UI
+    pager = less -FX
+
+    # --- DELTA THEME SETTINGS (Uncomment only if Delta is installed) ---
+    # pager = delta
+
+[interactive]
+    # diffFilter = delta --color-only
+
+[delta]
+    # navigate = true    # use n and N to move between diff sections
+    # light = false      # set to true if you're in a light terminal theme
+    # side-by-side = true
+    # line-numbers = true
+
+[init]
+    # Eat shit social justice warriors
+    defaultBranch = master
+
+[push]
+    # Automatically set upstream branch on push (no more --set-upstream)
+    autoSetupRemote = true
+
+    # 'simple' ensures you only push the current branch to its matching remote
+    default = simple
+
+[pull]
+    # Rebase local changes on top of pulled changes (avoids merge bubbles)
+    rebase = true
+
+[fetch]
+    # Remove local branches that have been deleted on the remote
+    prune = true
+
+[rerere]
+    # "Reuse Recorded Resolution" - remembers how you fixed conflicts
+    enabled = true
+
+[help]
+    # Autocorrect typos after 1 second (e.g., 'git statsu' -> 'git status')
+    autocorrect = 10
+
+[diff]
+    # Uses a smarter algorithm to detect code movement
+    algorithm = histogram
+
+    # Detects renamed files better
+    renames = true
+
+[merge]
+    # Show common ancestor in conflicts (helps understand context)
+    conflictstyle = zdiff3
+
+[alias]
+    # Shorten common commands
+    st = status
+    co = checkout
+    ci = commit
+    br = branch
+    df = diff
+    cp = cherry-pick
+
+    # Unstage a file (remove from index)
+    unstage = restore --staged
+
+    # Undo the last commit but keep changes in working directory
+    undo = reset HEAD~1
+
+    # The "Pretty Log" - A visualized graph of your commit history
+    lg = log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim white)- %an%C(reset)%C(auto)%d%C(reset)'
+
+    # List all aliases defined in config
+    aliases = config --get-regexp alias
+
+    # Quick amend (add changes to previous commit without changing message)
+    amend = commit --amend --no-edit
+[safe]
+	directory = *
