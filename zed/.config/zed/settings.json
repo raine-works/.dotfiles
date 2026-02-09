@@ -1,8 +1,23 @@
 {
   "agent": {
     "default_model": {
-      "provider": "zed.dev",
-      "model": "claude-opus-4-6",
+      "provider": "anthropic",
+      "model": "claude-opus-4-6-thinking-latest",
+    },
+    "commit_message_model": {
+      "provider": "anthropic",
+      "model": "claude-3-5-sonnet-latest",
+    },
+    "tool_permissions": {
+      "tools": {
+        "terminal": {
+          "always_allow": [
+            {
+              "pattern": "^bun\\s",
+            },
+          ],
+        },
+      },
     },
     "default_profile": "write",
     "favorite_models": [],
