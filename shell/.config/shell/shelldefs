@@ -1,3 +1,7 @@
+# ---------------------------------------------------------
+# Shared Shell Configuration (sourced by zshrc and bashrc)
+# ---------------------------------------------------------
+
 # 1. PATHS & ENVIRONMENT VARIABLES
 # ---------------------------------------------------------
 export KUBECONFIG=~/.kube/config

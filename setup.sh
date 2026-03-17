@@ -4,13 +4,7 @@ set -e
 DOTFILES_REPO="https://github.com/raine-works/.dotfiles.git"
 DOTFILES_DIR="$HOME/.dotfiles"
 PACKAGES=(shell ghostty starship gitconfig)
-
-# Detect shell and add the right shell package
-case "$(basename "$SHELL")" in
-    zsh)  PACKAGES+=(zsh)  ;;
-    bash) PACKAGES+=(bash) ;;
-    *)    warn "Unrecognized shell ($SHELL) — skipping shell config" ;;
-esac
+SOURCE_TAG="# dotfiles-managed"
 
 # -------------------------------------------------------------------
 # Helpers
@@ -74,7 +68,35 @@ stow_packages() {
 }
 
 # -------------------------------------------------------------------
-# 4. Git identity setup
+# 4. Inject source line into shell rc file
+# -------------------------------------------------------------------
+inject_shell_config() {
+    local rc_file config_file source_line
+
+    case "$(basename "$SHELL")" in
+        zsh)  rc_file="$HOME/.zshrc";  config_file="$HOME/.config/shell/zshrc"  ;;
+        bash) rc_file="$HOME/.bashrc"; config_file="$HOME/.config/shell/bashrc" ;;
+        *)    warn "Unrecognized shell ($SHELL) — add this to your rc file manually:"
+              warn '  source ~/.config/shell/zshrc   # or bashrc'
+              return ;;
+    esac
+
+    local source_line="[ -f \"$config_file\" ] && source \"$config_file\" $SOURCE_TAG"
+
+    if [ ! -f "$rc_file" ]; then
+        echo "$source_line" > "$rc_file"
+        ok "Created $rc_file with dotfiles source line"
+    elif ! grep -qF "$SOURCE_TAG" "$rc_file"; then
+        echo "" >> "$rc_file"
+        echo "$source_line" >> "$rc_file"
+        ok "Appended source line to $rc_file"
+    else
+        ok "$rc_file already configured, skipping"
+    fi
+}
+
+# -------------------------------------------------------------------
+# 5. Git identity setup
 # -------------------------------------------------------------------
 setup_git_identity() {
     if [ ! -f "$HOME/.gitconfig.local" ]; then
@@ -110,7 +132,8 @@ echo ""
 install_deps
 clone_dotfiles
 stow_packages
+inject_shell_config
 setup_git_identity
 
 echo ""
-ok "All done! Restart your shell or run: source ~/.zshrc"
+ok "All done! Restart your shell to pick up the new config."

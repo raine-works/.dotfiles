@@ -1,11 +1,9 @@
 # ---------------------------------------------------------
-# Shared configuration (aliases, exports, tools)
+# Dotfiles: Zsh-specific configuration
 # ---------------------------------------------------------
-[ -f "$HOME/.shelldefs" ] && source "$HOME/.shelldefs"
+source "$HOME/.config/shell/shelldefs"
 
-# ---------------------------------------------------------
-# Zsh-specific: Completion system
-# ---------------------------------------------------------
+# Completion system
 fpath=("$HOME/.docker/completions" $fpath)
 autoload -Uz compinit && compinit
 
@@ -16,9 +14,7 @@ zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'
 zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
 zstyle ':completion:*' menu select
 
-# ---------------------------------------------------------
-# Zsh-specific: Functions
-# ---------------------------------------------------------
+# Functions
 fzf-alias-finder() {
   local result=$(alias | fzf --no-sort --ansi | cut -d'=' -f1 | sed 's/alias //')
   if [[ -n "$result" ]]; then
@@ -27,10 +23,6 @@ fzf-alias-finder() {
 }
 
 alias aliases='fzf-alias-finder'
-alias refresh='source ~/.zshrc'
 
-# ---------------------------------------------------------
 # Prompt (must be last)
-# ---------------------------------------------------------
 eval "$(starship init zsh)"
-

@@ -1,0 +1,23 @@
+# ---------------------------------------------------------
+# Dotfiles: Bash-specific configuration
+# ---------------------------------------------------------
+source "$HOME/.config/shell/shelldefs"
+
+# Completion
+if command -v fzf >/dev/null 2>&1; then
+    eval "$(fzf --bash)"
+fi
+
+# Functions
+fzf-alias-finder() {
+  local result=$(alias | fzf --no-sort --ansi | cut -d'=' -f1 | sed 's/alias //')
+  if [[ -n "$result" ]]; then
+    history -s "$result"
+    echo "$result"
+  fi
+}
+
+alias aliases='fzf-alias-finder'
+
+# Prompt (must be last)
+eval "$(starship init bash)"

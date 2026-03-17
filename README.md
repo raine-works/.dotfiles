@@ -44,15 +44,13 @@ curl -fsSL https://raw.githubusercontent.com/raine-works/.dotfiles/master/setup.
     Or stow individual packages:
 
     ```bash
-    stow shell       # shared aliases & exports (always stow this)
-    stow zsh         # if using zsh
-    stow bash        # if using bash
+    stow shell       # shared aliases, exports, tools → ~/.config/shell/
     stow ghostty
     stow starship
     stow gitconfig
     ```
 
-    The install script auto-detects your shell (`$SHELL`) and stows the correct one.
+    The install script auto-detects your shell (`$SHELL`) and appends a single `source` line to your existing `~/.zshrc` or `~/.bashrc`. Your current config is never overwritten.
 
 3.  **Create your local git identity** (not tracked by this repo):
 
@@ -68,9 +66,18 @@ curl -fsSL https://raw.githubusercontent.com/raine-works/.dotfiles/master/setup.
 
 | Package | Config Path | Description |
 |---|---|---|
-| `shell/` | `~/.shelldefs` | Shared aliases, exports, and PATH setup |
-| `zsh/` | `~/.zshrc` | Zsh-specific config (sources `~/.shelldefs`) |
-| `bash/` | `~/.bashrc` | Bash-specific config (sources `~/.shelldefs`) |
+| `shell/` | `~/.config/shell/` | Shared aliases, exports, PATH + shell-specific configs |
 | `ghostty/` | `~/.config/ghostty/config` | Ghostty terminal emulator |
 | `starship/` | `~/.config/starship/starship.toml` | Starship prompt |
+| `gitconfig/` | `~/.gitconfig` | Git configuration (includes `~/.gitconfig.local`) |
+
+The `shell/` package contains:
+- `shelldefs` — shared exports, aliases, and tool setup (POSIX-compatible)
+- `zshrc` — zsh-specific completions, functions, and prompt init
+- `bashrc` — bash-specific completions, functions, and prompt init
+
+The install script adds one line to your existing rc file:
+```bash
+[ -f "~/.config/shell/zshrc" ] && source "~/.config/shell/zshrc" # dotfiles-managed
+```
 | `gitconfig/` | `~/.gitconfig` | Git configuration (includes `~/.gitconfig.local`) |
