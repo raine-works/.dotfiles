@@ -1,83 +1,198 @@
 # Dotfiles
 
-Personal dotfiles managed with [GNU Stow](https://www.gnu.org/software/stow/).
+My personal, opinionated development environment — managed with [GNU Stow](https://www.gnu.org/software/stow/) and designed to get a new machine feeling like home in a single command.
 
-## Prerequisites
+> **Fair warning:** These dotfiles reflect *my* workflow and preferences. They ship with specific tool choices (Ghostty, Starship, fzf), a Catppuccin Frappe color scheme everywhere, rebase-oriented Git defaults, and an alias vocabulary that makes sense to me. Feel free to fork and bend them to your own taste, but don't expect a neutral starting point — this is a setup that works for one person and is shared in the spirit of "steal what's useful."
 
-*   **Git**
-*   **GNU Stow**
-*   **[Starship](https://starship.rs/)** — cross-shell prompt
-*   **[fzf](https://github.com/junegunn/fzf)** — fuzzy finder
+## Overview
 
-    ```bash
-    # macOS
-    brew install stow starship fzf
+```
+~/.dotfiles/
+├── ghostty/                   # Ghostty terminal emulator config
+├── gitconfig/                 # Git settings, aliases, and merge strategy
+├── shell/                     # Shared aliases, exports, and shell-specific rc files
+│   └── .config/shell/
+│       ├── shelldefs           # Core env vars and general aliases
+│       ├── tools/              # Modular tool configs (auto-sourced)
+│       │   ├── bun.sh
+│       │   ├── nvm.sh
+│       │   ├── docker.sh
+│       │   ├── kubernetes.sh
+│       │   ├── java.sh
+│       │   └── android.sh
+│       ├── zshrc               # Zsh-specific config
+│       └── bashrc              # Bash-specific config
+├── starship/                  # Starship cross-shell prompt theme
+├── install.sh                 # Interactive installer with tool selection
+└── setup.sh                   # One-liner: clone, install deps, hand off to install.sh
+```
 
-    # Debian/Ubuntu
-    sudo apt install stow fzf
-    curl -sS https://starship.rs/install.sh | sh
-    ```
+Each top-level directory is a **Stow package** — running `stow <package>` symlinks its contents into the corresponding location under `$HOME`. No files are copied or overwritten; everything stays version-controlled in this repo.
 
 ## Quick Start
 
-Run this single command to clone, install dependencies, stow everything, and configure your git identity:
+If you want everything at once — clone the repo, install dependencies, stow all packages, and set up your Git identity — run:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/raine-works/.dotfiles/master/setup.sh | bash
 ```
 
+The setup script will:
+1. Install **Git**, **GNU Stow**, **Starship**, and **fzf** via Homebrew (macOS) or apt (Debian/Ubuntu)
+2. Clone this repo to `~/.dotfiles`
+3. Stow every package
+4. Inject a single `source` line into your existing `~/.zshrc` or `~/.bashrc` (your current config is never overwritten)
+5. Launch an **interactive tool picker** — choose which dev tools to install and configure
+6. Prompt you to create a local `~/.gitconfig.local` for your Git identity
+
 ## Manual Installation
 
-1.  **Clone the repository** into your home directory:
+### Prerequisites
+
+| Dependency | Purpose |
+|---|---|
+| [Git](https://git-scm.com/) | Version control |
+| [GNU Stow](https://www.gnu.org/software/stow/) | Symlink manager for dotfiles |
+| [Starship](https://starship.rs/) | Cross-shell prompt |
+| [fzf](https://github.com/junegunn/fzf) | Fuzzy finder used by shell aliases and completions |
+
+```bash
+# macOS
+brew install stow starship fzf
+
+# Debian / Ubuntu
+sudo apt install stow fzf
+curl -sS https://starship.rs/install.sh | sh
+```
+
+### Steps
+
+1. **Clone** the repo into your home directory:
 
     ```bash
-    git clone <your-repo-url> ~/.dotfiles
+    git clone https://github.com/raine-works/.dotfiles.git ~/.dotfiles
     cd ~/.dotfiles
     ```
 
-2.  **Run the install script** to stow everything at once:
+2. **Run the install script** — it stows packages, then launches an interactive menu to pick which dev tools to install:
 
     ```bash
     ./install.sh
     ```
 
-    Or stow individual packages:
+    The menu uses arrow keys to navigate, spacebar to toggle, and enter to confirm. Tools already detected on your system are pre-selected:
 
-    ```bash
-    stow shell       # shared aliases, exports, tools → ~/.config/shell/
-    stow ghostty
-    stow starship
-    stow gitconfig
+    ```
+     ❯ [✔] NVM              Node Version Manager
+       [✔] Bun              JavaScript runtime & bundler
+       [ ] Docker           Container aliases (requires Docker Desktop)
+       [ ] Kubernetes       kubectl + kubectx/kubens aliases
+       [ ] Java             Zulu 11 JDK
+       [ ] Android SDK      Android SDK paths
+       ↑/↓ navigate · space toggle · enter confirm
     ```
 
-    The install script auto-detects your shell (`$SHELL`) and appends a single `source` line to your existing `~/.zshrc` or `~/.bashrc`. Your current config is never overwritten.
+    **Flags:**
+    - `./install.sh --all` — select every tool without the menu
+    - `./install.sh --no-tools` — skip tool selection entirely (stow + shell config only)
 
-3.  **Create your local git identity** (not tracked by this repo):
+    Or stow individual packages manually if you only want parts of the config:
+
+    ```bash
+    stow shell        # aliases, exports, PATH, shell rc files
+    stow ghostty      # terminal emulator
+    stow starship     # prompt theme
+    stow gitconfig    # git settings + aliases
+    ```
+
+3. The installer will also prompt you to **create your local Git identity** (not tracked by this repo). You can skip this and create it manually later:
 
     ```bash
     cat > ~/.gitconfig.local << 'EOF'
     [user]
         email = you@example.com
-        name = your-name
+        name  = Your Name
     EOF
     ```
 
-## What's Included
+## What's Inside
 
-| Package | Config Path | Description |
-|---|---|---|
-| `shell/` | `~/.config/shell/` | Shared aliases, exports, PATH + shell-specific configs |
-| `ghostty/` | `~/.config/ghostty/config` | Ghostty terminal emulator |
-| `starship/` | `~/.config/starship/starship.toml` | Starship prompt |
-| `gitconfig/` | `~/.gitconfig` | Git configuration (includes `~/.gitconfig.local`) |
+### Shell — `shell/`
 
-The `shell/` package contains:
-- `shelldefs` — shared exports, aliases, and tool setup (POSIX-compatible)
-- `zshrc` — zsh-specific completions, functions, and prompt init
-- `bashrc` — bash-specific completions, functions, and prompt init
+Symlinks to `~/.config/shell/`. The shell config is split into a core file, modular tool configs, and shell-specific rc files:
 
-The install script adds one line to your existing rc file:
+| File | Role |
+|---|---|
+| `shelldefs` | Core exports, general aliases, and auto-sources everything in `tools/` |
+| `tools/*.sh` | One file per tool — self-guarding modules that only activate when the tool is installed |
+| `zshrc` | Zsh completions (case-insensitive, menu-select, colored), fzf integration, and Starship init |
+| `bashrc` | Bash equivalents of the above |
+
+The `HOST_IP` variable is auto-detected from your active network interface.
+
+**General aliases** (always active):
+- `..` / `...` / `....` — navigate up directories
+- `cl` — clear, `lsa` — `ls -a`, `ip` — show local IP
+- `fzfp` — fzf with a bat file preview
+
+**Tool modules** (activate when the tool is on your PATH):
+
+| Module | Aliases / Config |
+|---|---|
+| `tools/nvm.sh` | NVM initialization and PATH setup |
+| `tools/bun.sh` | Bun runtime PATH and shell completions |
+| `tools/docker.sh` | `d`, `dps`, `dstop` (stop all containers), `dc`, `dcu`, `dcd` |
+| `tools/kubernetes.sh` | `k`, `ka`, `ke`, `kg`, `kd`, `kgpo`, `kgd`, `kgs`, `kc`/`kns`, `kl`, `klp`/`klns` (fzf pod log selector), `kdelp` (fzf pod deletion) |
+| `tools/java.sh` | `JAVA_HOME` and PATH for Zulu 11 JDK |
+| `tools/android.sh` | `ANDROID_HOME` and platform-tools PATH |
+
+### Ghostty — `ghostty/`
+
+Symlinks to `~/.config/ghostty/config`.
+
+- **Theme:** Catppuccin Frappe
+- **Font size:** 19px
+- **Background opacity:** 0.7 with a 20px blur radius
+- **macOS option key** mapped as Alt (not Meta) for proper keybinds
+- Mouse cursor hides while typing
+
+### Git — `gitconfig/`
+
+Symlinks to `~/.gitconfig`. Identity is kept out of version control via an `[include]` of `~/.gitconfig.local`.
+
+Key opinions baked in:
+- **Editor:** VS Code (`code --wait`)
+- **Default branch:** `master`
+- **Pull strategy:** rebase (no merge bubbles)
+- **Merge conflict style:** `zdiff3` (shows common ancestor for clearer diffs)
+- **Diff algorithm:** `histogram`
+- **Rerere:** enabled — Git remembers how you resolved conflicts
+- **Auto push setup:** `autoSetupRemote = true` (no more `--set-upstream` on first push)
+- **Fetch:** auto-prunes deleted remote branches
+- **Autocorrect:** enabled (10 decisecond delay)
+- **Delta:** commented-out config ready to enable if [delta](https://github.com/dandavison/delta) is installed
+
+**Aliases:** `st`, `co`, `ci`, `br`, `df`, `cp`, `unstage`, `undo`, `amend`, `lg` (pretty graph log), `aliases` (list all aliases)
+
+### Starship — `starship/`
+
+Symlinks to `~/.config/starship/starship.toml`.
+
+- **Theme:** Catppuccin Frappe palette (matches Ghostty)
+- **Left prompt:** directory → git branch → input character
+- **Right prompt:** Kubernetes context → Docker context → command duration → time
+- **Prompt character:** green `❯` in insert mode, `[N] >>>` in vi normal mode
+
+## Uninstalling
+
+To remove any package, unstow it:
+
 ```bash
-[ -f "~/.config/shell/zshrc" ] && source "~/.config/shell/zshrc" # dotfiles-managed
+cd ~/.dotfiles
+stow -D shell
+stow -D ghostty
+stow -D starship
+stow -D gitconfig
 ```
-| `gitconfig/` | `~/.gitconfig` | Git configuration (includes `~/.gitconfig.local`) |
+
+This deletes only the symlinks — your original files are untouched. You may also want to remove the `# dotfiles-managed` source line from your `~/.zshrc` or `~/.bashrc`.
