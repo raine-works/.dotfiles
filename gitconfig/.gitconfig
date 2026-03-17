@@ -1,6 +1,10 @@
-[user]
-	email = raine@raineworks.com
-	name = raine-works
+# Personal info (name, email) should be set in ~/.gitconfig.local
+# Create that file with:
+#   [user]
+#       email = you@example.com
+#       name = your-name
+[include]
+    path = ~/.gitconfig.local
 
 [core]
     # Use VS Code as the default editor (flags wait for file close)
@@ -30,7 +34,6 @@
     # line-numbers = true
 
 [init]
-    # Eat shit social justice warriors
     defaultBranch = master
 
 [push]
@@ -90,5 +93,3 @@
 
     # Quick amend (add changes to previous commit without changing message)
     amend = commit --amend --no-edit
-[safe]
-	directory = *

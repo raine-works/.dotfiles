@@ -1,63 +1,76 @@
 # Dotfiles
 
-This repository contains my personal dotfiles, managed using [GNU Stow](https://www.gnu.org/software/stow/) to create symlinks from this repository to the appropriate locations in my home directory.
+Personal dotfiles managed with [GNU Stow](https://www.gnu.org/software/stow/).
 
-## Getting Started
+## Prerequisites
 
-These instructions will get you a copy of the project up and running on your local machine.
+*   **Git**
+*   **GNU Stow**
+*   **[Starship](https://starship.rs/)** — cross-shell prompt
+*   **[fzf](https://github.com/junegunn/fzf)** — fuzzy finder
 
-### Prerequisites
-
-Before you begin, ensure you have the following installed:
-
-*   **Git**: For cloning the repository.
-*   **GNU Stow**: For managing symlinks.
-
-    On macOS, you can install it using Homebrew:
     ```bash
-    brew install stow
-    ```
-    On Debian/Ubuntu:
-    ```bash
-    sudo apt install stow
+    # macOS
+    brew install stow starship fzf
+
+    # Debian/Ubuntu
+    sudo apt install stow fzf
+    curl -sS https://starship.rs/install.sh | sh
     ```
 
-### Installation
+## Quick Start
 
-1.  **Clone the repository**:
-    It is recommended to clone this repository into your home directory as `.dotfiles`. This structure allows `stow` to work effectively by creating symlinks directly in your home directory.
+Run this single command to clone, install dependencies, stow everything, and configure your git identity:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/raine-works/.dotfiles/master/setup.sh | bash
+```
+
+## Manual Installation
+
+1.  **Clone the repository** into your home directory:
 
     ```bash
-    git clone https://github.com/raine-works/.dotfiles.git ~/.dotfiles
-    ```
-
-2.  **Navigate to the dotfiles directory**:
-
-    ```bash
+    git clone <your-repo-url> ~/.dotfiles
     cd ~/.dotfiles
     ```
 
-3.  **Stow the dotfiles**:
-    For each configuration you want to set up, run the `stow` command. This will create symbolic links from the repository to your home directory (`~/`).
+2.  **Run the install script** to stow everything at once:
 
     ```bash
-    stow zsh
+    ./install.sh
+    ```
+
+    Or stow individual packages:
+
+    ```bash
+    stow shell       # shared aliases & exports (always stow this)
+    stow zsh         # if using zsh
+    stow bash        # if using bash
     stow ghostty
-    stow zed
     stow starship
     stow gitconfig
     ```
 
-    For example, `stow zsh` will create a symlink for `~/.zshrc` pointing to `~/.dotfiles/zsh/.zshrc`.
+    The install script auto-detects your shell (`$SHELL`) and stows the correct one.
 
-    **Important**: If you already have existing configuration files (e.g., `~/.zshrc`), `stow` will not overwrite them. You should move or delete them before running `stow` for the respective package.
+3.  **Create your local git identity** (not tracked by this repo):
 
-## Included Dotfiles
+    ```bash
+    cat > ~/.gitconfig.local << 'EOF'
+    [user]
+        email = you@example.com
+        name = your-name
+    EOF
+    ```
 
-This repository includes configurations for:
+## What's Included
 
-*   **`zsh/`**: Zsh shell configuration (`.zshrc`).
-*   **`ghostty/`**: Ghostty terminal emulator configuration (`.config/ghostty/config`).
-*   **`zed/`**: Zed editor settings (`.config/zed/settings.json`).
-*   **`starship/`**: Starship prompt configuration (`.config/starship/starship.toml`).
-*   **`gitconfig/`**: Git configuration (`.gitconfig`).
+| Package | Config Path | Description |
+|---|---|---|
+| `shell/` | `~/.shelldefs` | Shared aliases, exports, and PATH setup |
+| `zsh/` | `~/.zshrc` | Zsh-specific config (sources `~/.shelldefs`) |
+| `bash/` | `~/.bashrc` | Bash-specific config (sources `~/.shelldefs`) |
+| `ghostty/` | `~/.config/ghostty/config` | Ghostty terminal emulator |
+| `starship/` | `~/.config/starship/starship.toml` | Starship prompt |
+| `gitconfig/` | `~/.gitconfig` | Git configuration (includes `~/.gitconfig.local`) |

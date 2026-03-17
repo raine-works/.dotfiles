@@ -19,7 +19,7 @@ $time"""
 palette = 'catppuccin_frappe'
 
 [character]
-vicmd_symbol = '[N] >>>'
+vimcmd_symbol = '[N] >>>'
 success_symbol = '[](bold green)'
 
 [git_branch]

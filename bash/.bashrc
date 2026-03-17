@@ -4,33 +4,27 @@
 [ -f "$HOME/.shelldefs" ] && source "$HOME/.shelldefs"
 
 # ---------------------------------------------------------
-# Zsh-specific: Completion system
+# Bash-specific: Completion
 # ---------------------------------------------------------
-fpath=("$HOME/.docker/completions" $fpath)
-autoload -Uz compinit && compinit
-
-source <(fzf --zsh)
-
-# Case-insensitive completion
-zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'
-zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
-zstyle ':completion:*' menu select
+if command -v fzf >/dev/null 2>&1; then
+    eval "$(fzf --bash)"
+fi
 
 # ---------------------------------------------------------
-# Zsh-specific: Functions
+# Bash-specific: Functions
 # ---------------------------------------------------------
 fzf-alias-finder() {
   local result=$(alias | fzf --no-sort --ansi | cut -d'=' -f1 | sed 's/alias //')
   if [[ -n "$result" ]]; then
-    print -z -- "$result"
+    history -s "$result"
+    echo "$result"
   fi
 }
 
 alias aliases='fzf-alias-finder'
-alias refresh='source ~/.zshrc'
+alias refresh='source ~/.bashrc'
 
 # ---------------------------------------------------------
 # Prompt (must be last)
 # ---------------------------------------------------------
-eval "$(starship init zsh)"
-
+eval "$(starship init bash)"
