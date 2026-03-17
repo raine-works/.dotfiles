@@ -1,5 +1,7 @@
 # Dotfiles
 
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy_Me_A_Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/raineworks)
+
 My personal, opinionated development environment — managed with [GNU Stow](https://www.gnu.org/software/stow/) and designed to get a new machine feeling like home in a single command.
 
 > **Fair warning:** These dotfiles reflect *my* workflow and preferences. They ship with specific tool choices (Ghostty, Starship, fzf), a Catppuccin Frappe color scheme everywhere, rebase-oriented Git defaults, and an alias vocabulary that makes sense to me. Feel free to fork and bend them to your own taste, but don't expect a neutral starting point — this is a setup that works for one person and is shared in the spirit of "steal what's useful."
