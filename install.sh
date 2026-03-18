@@ -108,7 +108,7 @@ install_ghostty() {
         warn "Install Ghostty manually: https://ghostty.org/docs/install/binary"
     fi
     if [ -d "$DOTFILES_DIR/ghostty" ]; then
-        stow -d "$DOTFILES_DIR" -t "$HOME" --restow ghostty && ok "  ghostty config stowed"
+        stow -d "$DOTFILES_DIR" -t "$HOME" --restow ghostty && ok "Ghostty config stowed"
     fi
 }
 
