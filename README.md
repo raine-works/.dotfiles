@@ -19,7 +19,8 @@ My personal, opinionated development environment — managed with [GNU Stow](htt
 │       │   ├── bun.sh
 │       │   ├── docker.sh
 │       │   ├── kubernetes.sh
-│       │   └── nvm.sh
+│       │   ├── nvm.sh
+│       │   └── python.sh
 │       ├── zshrc               # Zsh-specific config
 │       └── bashrc              # Bash-specific config
 ├── starship/                  # Starship cross-shell prompt theme
@@ -88,6 +89,7 @@ curl -sS https://starship.rs/install.sh | sh
        [✔] NVM              Node Version Manager
        [✔] Bun              JavaScript runtime & bundler
        [ ] Deno             Secure JavaScript/TypeScript runtime
+       [ ] Python           Python 3 via pyenv version manager
        [ ] Docker           Docker Desktop for containers
        [ ] Kubernetes       kubectl + kubectx/kubens aliases
        [ ] VS Code          Visual Studio Code editor
@@ -146,6 +148,7 @@ The `HOST_IP` variable is auto-detected from your active network interface.
 | `tools/bun.sh` | Bun runtime PATH and shell completions |
 | `tools/docker.sh` | `d`, `dps`, `dstop` (stop all containers), `dc`, `dcu`, `dcd` |
 | `tools/kubernetes.sh` | `k`, `ka`, `ke`, `kg`, `kd`, `kgpo`, `kgd`, `kgs`, `kc`/`kns`, `kl`, `klp`/`klns` (fzf pod log selector), `kdelp` (fzf pod deletion) |
+| `tools/python.sh` | pyenv initialization and PATH setup |
 
 ### Ghostty — `ghostty/`
 

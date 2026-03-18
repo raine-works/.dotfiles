@@ -13,9 +13,9 @@ fail()  { printf "\033[1;31m[error]\033[0m %s\n" "$1" >&2; exit 1; }
 command_exists() { command -v "$1" >/dev/null 2>&1; }
 
 # ── Tool Registry ───────────────────────────────────────
-TOOL_IDS=(    ghostty            nvm               bun                            deno                               docker                                   kubernetes            vscode)
-TOOL_NAMES=(  "Ghostty"          "NVM"             "Bun"                          "Deno"                             "Docker"                                 "Kubernetes"          "VS Code")
-TOOL_DESCS=(  "GPU-accelerated terminal emulator"  "Node Version Manager"  "JavaScript runtime & bundler"  "Secure JavaScript/TypeScript runtime"  "Docker Desktop for containers"              "kubectl + kubectx/kubens aliases"  "Visual Studio Code editor")
+TOOL_IDS=(    ghostty            nvm               bun                            deno                               python                          docker                                   kubernetes            vscode)
+TOOL_NAMES=(  "Ghostty"          "NVM"             "Bun"                          "Deno"                             "Python"                        "Docker"                                 "Kubernetes"          "VS Code")
+TOOL_DESCS=(  "GPU-accelerated terminal emulator"  "Node Version Manager"  "JavaScript runtime & bundler"  "Secure JavaScript/TypeScript runtime"  "Python 3 via pyenv version manager"  "Docker Desktop for containers"              "kubectl + kubectx/kubens aliases"  "Visual Studio Code editor")
 
 # ── Interactive Tool Menu ────────────────────────────────
 show_menu() {
@@ -32,6 +32,7 @@ show_menu() {
             nvm)        [ -d "$HOME/.nvm" ]                                    && selected[$i]=true ;;
             bun)        command_exists bun                                      && selected[$i]=true ;;
             deno)       command_exists deno                                     && selected[$i]=true ;;
+            python)     command_exists pyenv                                   && selected[$i]=true ;;
             docker)     command_exists docker                                   && selected[$i]=true ;;
             kubernetes) command_exists kubectl                                  && selected[$i]=true ;;
             vscode)     command_exists code                                     && selected[$i]=true ;;
@@ -151,6 +152,35 @@ install_deno() {
         bash <(curl -fsSL https://deno.land/install.sh)
     fi
     ok "Deno installed"
+}
+
+install_python() {
+    if command_exists pyenv; then
+        ok "pyenv already installed"
+    elif command_exists brew; then
+        info "Installing pyenv via Homebrew..."
+        brew install pyenv
+        ok "pyenv installed"
+    elif command_exists apt-get; then
+        info "Installing pyenv build dependencies..."
+        sudo apt-get update -qq && sudo apt-get install -y -qq \
+            make build-essential libssl-dev zlib1g-dev libbz2-dev \
+            libreadline-dev libsqlite3-dev wget curl llvm libncursesw5-dev \
+            xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
+        info "Installing pyenv via installer..."
+        curl -fsSL https://pyenv.run | bash
+        ok "pyenv installed"
+    else
+        warn "Install pyenv manually: https://github.com/pyenv/pyenv#installation"
+    fi
+
+    if command_exists pyenv && ! pyenv versions --bare | grep -q .; then
+        info "Installing latest stable Python 3..."
+        local latest
+        latest=$(pyenv install --list | grep -E '^\s+3\.[0-9]+\.[0-9]+$' | tail -1 | tr -d ' ')
+        pyenv install "$latest" && pyenv global "$latest"
+        ok "Python $latest installed and set as global"
+    fi
 }
 
 install_docker() {
