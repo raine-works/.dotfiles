@@ -13,9 +13,9 @@ fail()  { printf "\033[1;31m[error]\033[0m %s\n" "$1" >&2; exit 1; }
 command_exists() { command -v "$1" >/dev/null 2>&1; }
 
 # ── Tool Registry ───────────────────────────────────────
-TOOL_IDS=(    nvm               bun                            docker                                   kubernetes                          java             android)
-TOOL_NAMES=(  "NVM"             "Bun"                          "Docker"                                 "Kubernetes"                        "Java"           "Android SDK")
-TOOL_DESCS=(  "Node Version Manager"  "JavaScript runtime & bundler"  "Container aliases (requires Docker Desktop)"  "kubectl + kubectx/kubens aliases"  "Zulu 11 JDK"   "Android SDK paths")
+TOOL_IDS=(    nvm               bun                            docker                                   kubernetes)
+TOOL_NAMES=(  "NVM"             "Bun"                          "Docker"                                 "Kubernetes")
+TOOL_DESCS=(  "Node Version Manager"  "JavaScript runtime & bundler"  "Docker Desktop for containers"              "kubectl + kubectx/kubens aliases")
 
 # ── Interactive Tool Menu ────────────────────────────────
 show_menu() {
@@ -32,8 +32,6 @@ show_menu() {
             bun)        command_exists bun                                      && selected[$i]=true ;;
             docker)     command_exists docker                                   && selected[$i]=true ;;
             kubernetes) command_exists kubectl                                  && selected[$i]=true ;;
-            java)       [ -d "/Library/Java/JavaVirtualMachines/zulu-11.jdk" ] && selected[$i]=true ;;
-            android)    [ -d "$HOME/Library/Android/sdk" ]                     && selected[$i]=true ;;
         esac
     done
 
@@ -111,11 +109,15 @@ install_bun() {
 
 install_docker() {
     if command_exists docker; then
-        ok "Docker already installed"
+        ok "Docker Desktop already installed"
+        return
+    fi
+    if command_exists brew; then
+        info "Installing Docker Desktop via Homebrew..."
+        brew install --cask docker
+        ok "Docker Desktop installed"
     else
-        warn "Docker Desktop must be installed manually:"
-        warn "  https://www.docker.com/products/docker-desktop/"
-        info "Docker aliases will activate once Docker is on your PATH."
+        warn "Install Docker Desktop manually: https://www.docker.com/products/docker-desktop/"
     fi
 }
 
@@ -143,29 +145,7 @@ install_kubernetes() {
     fi
 }
 
-install_java() {
-    if [ -d "/Library/Java/JavaVirtualMachines/zulu-11.jdk" ]; then
-        ok "Java (Zulu 11) already installed"
-        return
-    fi
-    if command_exists brew; then
-        info "Installing Java (Zulu 11) via Homebrew..."
-        brew install --cask zulu11
-        ok "Java installed"
-    else
-        warn "Install Java (Zulu 11) manually: https://www.azul.com/downloads/?version=java-11-lts"
-    fi
-}
 
-install_android() {
-    if [ -d "$HOME/Library/Android/sdk" ]; then
-        ok "Android SDK found"
-    else
-        warn "Android SDK not found. Install Android Studio:"
-        warn "  https://developer.android.com/studio"
-        info "Android aliases will activate once the SDK is installed."
-    fi
-}
 
 # ── Stow Packages ───────────────────────────────────────
 stow_packages() {
