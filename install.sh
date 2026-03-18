@@ -13,9 +13,9 @@ fail()  { printf "\033[1;31m[error]\033[0m %s\n" "$1" >&2; exit 1; }
 command_exists() { command -v "$1" >/dev/null 2>&1; }
 
 # ── Tool Registry ───────────────────────────────────────
-TOOL_IDS=(    nvm               bun                            docker                                   kubernetes)
-TOOL_NAMES=(  "NVM"             "Bun"                          "Docker"                                 "Kubernetes")
-TOOL_DESCS=(  "Node Version Manager"  "JavaScript runtime & bundler"  "Docker Desktop for containers"              "kubectl + kubectx/kubens aliases")
+TOOL_IDS=(    nvm               bun                            docker                                   kubernetes            vscode)
+TOOL_NAMES=(  "NVM"             "Bun"                          "Docker"                                 "Kubernetes"          "VS Code")
+TOOL_DESCS=(  "Node Version Manager"  "JavaScript runtime & bundler"  "Docker Desktop for containers"              "kubectl + kubectx/kubens aliases"  "Visual Studio Code editor")
 
 # ── Interactive Tool Menu ────────────────────────────────
 show_menu() {
@@ -32,6 +32,7 @@ show_menu() {
             bun)        command_exists bun                                      && selected[$i]=true ;;
             docker)     command_exists docker                                   && selected[$i]=true ;;
             kubernetes) command_exists kubectl                                  && selected[$i]=true ;;
+            vscode)     command_exists code                                     && selected[$i]=true ;;
         esac
     done
 
@@ -145,7 +146,19 @@ install_kubernetes() {
     fi
 }
 
-
+install_vscode() {
+    if command_exists code; then
+        ok "VS Code already installed"
+        return
+    fi
+    if command_exists brew; then
+        info "Installing VS Code via Homebrew..."
+        brew install --cask visual-studio-code
+        ok "VS Code installed"
+    else
+        warn "Install VS Code manually: https://code.visualstudio.com/"
+    fi
+}
 
 # ── Stow Packages ───────────────────────────────────────
 stow_packages() {
@@ -223,7 +236,22 @@ main() {
     echo "  ╚══════════════════════════════════╝"
     echo ""
 
-    command_exists stow || fail "GNU Stow is required. Install it first (brew install stow)."
+    if [[ "$(uname)" == "Darwin" ]] && ! command_exists brew; then
+        info "Installing Homebrew..."
+        bash <(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)
+        eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || /usr/local/bin/brew shellenv 2>/dev/null)"
+        ok "Homebrew installed"
+    fi
+
+    if ! command_exists stow; then
+        if command_exists brew; then
+            info "Installing GNU Stow via Homebrew..."
+            brew install stow
+            ok "GNU Stow installed"
+        else
+            fail "GNU Stow is required. Install it first."
+        fi
+    fi
 
     stow_packages
     inject_shell_config
