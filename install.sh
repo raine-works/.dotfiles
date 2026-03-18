@@ -92,7 +92,7 @@ install_nvm() {
         info "Installing NVM via install script (latest)..."
         local nvm_latest
         nvm_latest=$(curl -fsSL https://api.github.com/repos/nvm-sh/nvm/releases/latest | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
-        PROFILE=/dev/null bash -c "curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/${nvm_latest}/install.sh | bash"
+        PROFILE=/dev/null bash <(curl -fsSL "https://raw.githubusercontent.com/nvm-sh/nvm/${nvm_latest}/install.sh")
     fi
     ok "NVM installed"
 }
@@ -103,7 +103,7 @@ install_bun() {
         return
     fi
     info "Installing Bun..."
-    curl -fsSL https://bun.sh/install | bash
+    bash <(curl -fsSL https://bun.sh/install)
     ok "Bun installed"
 }
 
