@@ -13,9 +13,9 @@ fail()  { printf "\033[1;31m[error]\033[0m %s\n" "$1" >&2; exit 1; }
 command_exists() { command -v "$1" >/dev/null 2>&1; }
 
 # ── Tool Registry ───────────────────────────────────────
-TOOL_IDS=(    nvm               bun                            docker                                   kubernetes            vscode)
-TOOL_NAMES=(  "NVM"             "Bun"                          "Docker"                                 "Kubernetes"          "VS Code")
-TOOL_DESCS=(  "Node Version Manager"  "JavaScript runtime & bundler"  "Docker Desktop for containers"              "kubectl + kubectx/kubens aliases"  "Visual Studio Code editor")
+TOOL_IDS=(    nvm               bun                            deno                               docker                                   kubernetes            vscode)
+TOOL_NAMES=(  "NVM"             "Bun"                          "Deno"                             "Docker"                                 "Kubernetes"          "VS Code")
+TOOL_DESCS=(  "Node Version Manager"  "JavaScript runtime & bundler"  "Secure JavaScript/TypeScript runtime"  "Docker Desktop for containers"              "kubectl + kubectx/kubens aliases"  "Visual Studio Code editor")
 
 # ── Interactive Tool Menu ────────────────────────────────
 show_menu() {
@@ -30,6 +30,7 @@ show_menu() {
         case "${TOOL_IDS[$i]}" in
             nvm)        [ -d "$HOME/.nvm" ]                                    && selected[$i]=true ;;
             bun)        command_exists bun                                      && selected[$i]=true ;;
+            deno)       command_exists deno                                     && selected[$i]=true ;;
             docker)     command_exists docker                                   && selected[$i]=true ;;
             kubernetes) command_exists kubectl                                  && selected[$i]=true ;;
             vscode)     command_exists code                                     && selected[$i]=true ;;
@@ -106,6 +107,21 @@ install_bun() {
     info "Installing Bun..."
     bash <(curl -fsSL https://bun.sh/install)
     ok "Bun installed"
+}
+
+install_deno() {
+    if command_exists deno; then
+        ok "Deno already installed"
+        return
+    fi
+    if command_exists brew; then
+        info "Installing Deno via Homebrew..."
+        brew install deno
+    else
+        info "Installing Deno via install script..."
+        bash <(curl -fsSL https://deno.land/install.sh)
+    fi
+    ok "Deno installed"
 }
 
 install_docker() {

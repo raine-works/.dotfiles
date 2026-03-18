@@ -17,11 +17,9 @@ My personal, opinionated development environment — managed with [GNU Stow](htt
 │       ├── shelldefs           # Core env vars and general aliases
 │       ├── tools/              # Modular tool configs (auto-sourced)
 │       │   ├── bun.sh
-│       │   ├── nvm.sh
 │       │   ├── docker.sh
 │       │   ├── kubernetes.sh
-│       │   ├── java.sh
-│       │   └── android.sh
+│       │   └── nvm.sh
 │       ├── zshrc               # Zsh-specific config
 │       └── bashrc              # Bash-specific config
 ├── starship/                  # Starship cross-shell prompt theme
@@ -42,10 +40,11 @@ curl -fsSL https://raw.githubusercontent.com/raine-works/.dotfiles/master/setup.
 The setup script will:
 1. Install **Git**, **GNU Stow**, **Starship**, and **fzf** via Homebrew (macOS) or apt (Debian/Ubuntu)
 2. Clone this repo to `~/.dotfiles`
-3. Stow every package
-4. Inject a single `source` line into your existing `~/.zshrc` or `~/.bashrc` (your current config is never overwritten)
-5. Launch an **interactive tool picker** — choose which dev tools to install and configure
-6. Prompt you to create a local `~/.gitconfig.local` for your Git identity
+3. Auto-install **Homebrew** on macOS if missing, then install **GNU Stow** via Homebrew
+4. Stow every package
+5. Inject a single `source` line into your existing `~/.zshrc` or `~/.bashrc` (your current config is never overwritten)
+6. Launch an **interactive tool picker** — choose which dev tools to install and configure
+7. Prompt you to create a local `~/.gitconfig.local` for your Git identity
 
 ## Manual Installation
 
@@ -87,10 +86,10 @@ curl -sS https://starship.rs/install.sh | sh
     ```
      ❯ [✔] NVM              Node Version Manager
        [✔] Bun              JavaScript runtime & bundler
-       [ ] Docker           Container aliases (requires Docker Desktop)
+       [ ] Deno             Secure JavaScript/TypeScript runtime
+       [ ] Docker           Docker Desktop for containers
        [ ] Kubernetes       kubectl + kubectx/kubens aliases
-       [ ] Java             Zulu 11 JDK
-       [ ] Android SDK      Android SDK paths
+       [ ] VS Code          Visual Studio Code editor
        ↑/↓ navigate · space toggle · enter confirm
     ```
 
@@ -145,8 +144,6 @@ The `HOST_IP` variable is auto-detected from your active network interface.
 | `tools/bun.sh` | Bun runtime PATH and shell completions |
 | `tools/docker.sh` | `d`, `dps`, `dstop` (stop all containers), `dc`, `dcu`, `dcd` |
 | `tools/kubernetes.sh` | `k`, `ka`, `ke`, `kg`, `kd`, `kgpo`, `kgd`, `kgs`, `kc`/`kns`, `kl`, `klp`/`klns` (fzf pod log selector), `kdelp` (fzf pod deletion) |
-| `tools/java.sh` | `JAVA_HOME` and PATH for Zulu 11 JDK |
-| `tools/android.sh` | `ANDROID_HOME` and platform-tools PATH |
 
 ### Ghostty — `ghostty/`
 
