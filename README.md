@@ -39,13 +39,15 @@ curl -fsSL https://raw.githubusercontent.com/raine-works/.dotfiles/master/setup.
 ```
 
 The setup script will:
-1. Install **Git**, **GNU Stow**, **Starship**, and **fzf** via Homebrew (macOS) or apt (Debian/Ubuntu)
-2. Clone this repo to `~/.dotfiles`
-3. Auto-install **Homebrew** on macOS if missing, then install **GNU Stow** via Homebrew
-4. Stow every package
-5. Inject a single `source` line into your existing `~/.zshrc` or `~/.bashrc` (your current config is never overwritten)
-6. Launch an **interactive tool picker** — choose which dev tools to install and configure
-7. Prompt you to create a local `~/.gitconfig.local` for your Git identity
+1. On macOS, auto-install **Homebrew** first if it's missing
+2. Install base dependencies — **Git**, **GNU Stow**, **Starship**, and **fzf** — via Homebrew (macOS) or apt (Debian/Ubuntu)
+3. Clone this repo to `~/.dotfiles` (or pull latest if it already exists)
+4. Hand off to the interactive installer (`install.sh`), which will:
+5. Ensure **GNU Stow** is available (defensive check; installs via Homebrew if needed)
+6. Stow the core packages (`shell`, `starship`, `gitconfig`) into `$HOME`
+7. Inject a single `source` line into your existing `~/.zshrc` or `~/.bashrc` (your current config is never overwritten)
+8. Launch an **interactive tool picker** — choose which dev tools to install and configure (Ghostty, NVM, Bun, Deno, Python, Docker, Kubernetes, VS Code)
+9. Prompt you to create a local `~/.gitconfig.local` for your Git identity
 
 ## Manual Installation
 
@@ -81,6 +83,8 @@ curl -sS https://starship.rs/install.sh | sh
     ```bash
     ./install.sh
     ```
+
+    On macOS, this script will auto-install Homebrew first if it is not already installed.
 
     The menu uses arrow keys to navigate, spacebar to toggle, and enter to confirm. Tools already detected on your system are pre-selected:
 

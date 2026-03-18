@@ -11,6 +11,16 @@ warn()  { printf "\033[1;33m[warn]\033[0m  %s\n" "$1"; }
 fail()  { printf "\033[1;31m[error]\033[0m %s\n" "$1" >&2; exit 1; }
 command_exists() { command -v "$1" >/dev/null 2>&1; }
 
+# ── Platform bootstrap ──────────────────────────────────
+ensure_homebrew_macos() {
+    if [[ "$(uname)" == "Darwin" ]] && ! command_exists brew; then
+        info "Homebrew not found — installing..."
+        bash <(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)
+        eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || /usr/local/bin/brew shellenv 2>/dev/null)"
+        ok "Homebrew installed"
+    fi
+}
+
 # ── Install base dependencies ───────────────────────────
 install_base_deps() {
     if command_exists brew; then
@@ -45,6 +55,7 @@ clone_dotfiles() {
 }
 
 # ── Run ──────────────────────────────────────────────────
+ensure_homebrew_macos
 install_base_deps
 clone_dotfiles
 
