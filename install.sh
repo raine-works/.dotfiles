@@ -2,7 +2,7 @@
 set -e
 
 DOTFILES_DIR="$(cd "$(dirname "$0")" && pwd)"
-PACKAGES=(shell ghostty starship gitconfig)
+PACKAGES=(shell starship gitconfig)
 SOURCE_TAG="# dotfiles-managed"
 
 # ── Helpers ──────────────────────────────────────────────
@@ -13,9 +13,9 @@ fail()  { printf "\033[1;31m[error]\033[0m %s\n" "$1" >&2; exit 1; }
 command_exists() { command -v "$1" >/dev/null 2>&1; }
 
 # ── Tool Registry ───────────────────────────────────────
-TOOL_IDS=(    nvm               bun                            deno                               docker                                   kubernetes            vscode)
-TOOL_NAMES=(  "NVM"             "Bun"                          "Deno"                             "Docker"                                 "Kubernetes"          "VS Code")
-TOOL_DESCS=(  "Node Version Manager"  "JavaScript runtime & bundler"  "Secure JavaScript/TypeScript runtime"  "Docker Desktop for containers"              "kubectl + kubectx/kubens aliases"  "Visual Studio Code editor")
+TOOL_IDS=(    ghostty            nvm               bun                            deno                               docker                                   kubernetes            vscode)
+TOOL_NAMES=(  "Ghostty"          "NVM"             "Bun"                          "Deno"                             "Docker"                                 "Kubernetes"          "VS Code")
+TOOL_DESCS=(  "GPU-accelerated terminal emulator"  "Node Version Manager"  "JavaScript runtime & bundler"  "Secure JavaScript/TypeScript runtime"  "Docker Desktop for containers"              "kubectl + kubectx/kubens aliases"  "Visual Studio Code editor")
 
 # ── Interactive Tool Menu ────────────────────────────────
 show_menu() {
@@ -28,6 +28,7 @@ show_menu() {
     for ((i = 0; i < num; i++)); do
         selected+=(false)
         case "${TOOL_IDS[$i]}" in
+            ghostty)    command_exists ghostty                                  && selected[$i]=true ;;
             nvm)        [ -d "$HOME/.nvm" ]                                    && selected[$i]=true ;;
             bun)        command_exists bun                                      && selected[$i]=true ;;
             deno)       command_exists deno                                     && selected[$i]=true ;;
@@ -82,6 +83,34 @@ show_menu() {
 }
 
 # ── Tool Installers ──────────────────────────────────────
+install_ghostty() {
+    if command_exists ghostty; then
+        ok "Ghostty already installed"
+    elif command_exists brew; then
+        info "Installing Ghostty via Homebrew..."
+        brew install --cask ghostty
+        ok "Ghostty installed"
+    elif command_exists pacman; then
+        info "Installing Ghostty via pacman..."
+        sudo pacman -S --noconfirm ghostty
+        ok "Ghostty installed"
+    elif command_exists dnf; then
+        info "Installing Ghostty via DNF (Terra)..."
+        sudo dnf install -y --nogpgcheck --repofrompath 'terra,https://repos.fyralabs.com/terra$releasever' terra-release 2>/dev/null || true
+        sudo dnf install -y ghostty
+        ok "Ghostty installed"
+    elif command_exists snap; then
+        info "Installing Ghostty via Snap..."
+        sudo snap install ghostty --classic
+        ok "Ghostty installed"
+    else
+        warn "Install Ghostty manually: https://ghostty.org/docs/install/binary"
+    fi
+    if [ -d "$DOTFILES_DIR/ghostty" ]; then
+        stow -d "$DOTFILES_DIR" -t "$HOME" --restow ghostty && ok "  ghostty config stowed"
+    fi
+}
+
 install_nvm() {
     if [ -d "$HOME/.nvm" ] || command_exists nvm; then
         ok "NVM already installed"

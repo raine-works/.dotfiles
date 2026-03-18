@@ -84,7 +84,8 @@ curl -sS https://starship.rs/install.sh | sh
     The menu uses arrow keys to navigate, spacebar to toggle, and enter to confirm. Tools already detected on your system are pre-selected:
 
     ```
-     ❯ [✔] NVM              Node Version Manager
+     ❯ [ ] Ghostty          GPU-accelerated terminal emulator
+       [✔] NVM              Node Version Manager
        [✔] Bun              JavaScript runtime & bundler
        [ ] Deno             Secure JavaScript/TypeScript runtime
        [ ] Docker           Docker Desktop for containers
@@ -101,10 +102,11 @@ curl -sS https://starship.rs/install.sh | sh
 
     ```bash
     stow shell        # aliases, exports, PATH, shell rc files
-    stow ghostty      # terminal emulator
     stow starship     # prompt theme
     stow gitconfig    # git settings + aliases
     ```
+
+    Ghostty config is stowed automatically when selected in the tool picker.
 
 3. The installer will also prompt you to **create your local Git identity** (not tracked by this repo). You can skip this and create it manually later:
 
