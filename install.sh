@@ -4,6 +4,7 @@ set -e
 DOTFILES_DIR="$(cd "$(dirname "$0")" && pwd)"
 PACKAGES=(shell starship gitconfig)
 SOURCE_TAG="# dotfiles-managed"
+DETECTED_TOOLS=()
 
 # ── Helpers ──────────────────────────────────────────────
 info()  { printf "\033[1;34m[info]\033[0m  %s\n" "$1"; }
@@ -11,6 +12,58 @@ ok()    { printf "\033[1;32m[ok]\033[0m    %s\n" "$1"; }
 warn()  { printf "\033[1;33m[warn]\033[0m  %s\n" "$1"; }
 fail()  { printf "\033[1;31m[error]\033[0m %s\n" "$1" >&2; exit 1; }
 command_exists() { command -v "$1" >/dev/null 2>&1; }
+
+array_contains() {
+    local needle="$1"
+    shift
+    local item
+    for item in "$@"; do
+        [[ "$item" == "$needle" ]] && return 0
+    done
+    return 1
+}
+
+tool_name() {
+    local tool_id="$1"
+    local i
+    for ((i = 0; i < ${#TOOL_IDS[@]}; i++)); do
+        [[ "${TOOL_IDS[$i]}" == "$tool_id" ]] && {
+            echo "${TOOL_NAMES[$i]}"
+            return
+        }
+    done
+    echo "$tool_id"
+}
+
+is_tool_detected() {
+    case "$1" in
+        ghostty)    command_exists ghostty ;;
+        nvm)        [ -d "$HOME/.nvm" ] ;;
+        bun)        command_exists bun ;;
+        deno)       command_exists deno ;;
+        python)     command_exists pyenv ;;
+        docker)     command_exists docker ;;
+        kubernetes) command_exists kubectl ;;
+        vscode)     command_exists code ;;
+        *)          return 1 ;;
+    esac
+}
+
+detect_installed_tools() {
+    DETECTED_TOOLS=()
+    local tool
+    for tool in "${TOOL_IDS[@]}"; do
+        is_tool_detected "$tool" && DETECTED_TOOLS+=("$tool")
+    done
+}
+
+tool_lineup() {
+    local tools=("$@")
+    local tool
+    for tool in "${tools[@]}"; do
+        printf "  - %s\n" "$(tool_name "$tool")"
+    done
+}
 
 # ── Tool Registry ───────────────────────────────────────
 TOOL_IDS=(    ghostty            nvm               bun                            deno                               python                          docker                                   kubernetes            vscode)
@@ -25,18 +78,13 @@ show_menu() {
     local first_draw=true
 
     # Pre-select tools already present on the system
+    DETECTED_TOOLS=()
     for ((i = 0; i < num; i++)); do
         selected+=(false)
-        case "${TOOL_IDS[$i]}" in
-            ghostty)    command_exists ghostty                                  && selected[$i]=true ;;
-            nvm)        [ -d "$HOME/.nvm" ]                                    && selected[$i]=true ;;
-            bun)        command_exists bun                                      && selected[$i]=true ;;
-            deno)       command_exists deno                                     && selected[$i]=true ;;
-            python)     command_exists pyenv                                   && selected[$i]=true ;;
-            docker)     command_exists docker                                   && selected[$i]=true ;;
-            kubernetes) command_exists kubectl                                  && selected[$i]=true ;;
-            vscode)     command_exists code                                     && selected[$i]=true ;;
-        esac
+        if is_tool_detected "${TOOL_IDS[$i]}"; then
+            selected[$i]=true
+            DETECTED_TOOLS+=("${TOOL_IDS[$i]}")
+        fi
     done
 
     tput civis 2>/dev/null || true
@@ -235,6 +283,195 @@ install_vscode() {
     fi
 }
 
+# ── Tool Uninstallers ───────────────────────────────────
+uninstall_ghostty() {
+    if command_exists brew; then
+        if brew list --cask ghostty >/dev/null 2>&1; then
+            info "Uninstalling Ghostty via Homebrew..."
+            if [[ "$1" == true ]]; then
+                brew uninstall --cask --zap ghostty || warn "Ghostty uninstall encountered an issue"
+            else
+                brew uninstall --cask ghostty || warn "Ghostty uninstall encountered an issue"
+            fi
+        fi
+    elif command_exists pacman; then
+        if pacman -Q ghostty >/dev/null 2>&1; then
+            info "Uninstalling Ghostty via pacman..."
+            if [[ "$1" == true ]]; then
+                sudo pacman -Rns --noconfirm ghostty || warn "Ghostty uninstall encountered an issue"
+            else
+                sudo pacman -R --noconfirm ghostty || warn "Ghostty uninstall encountered an issue"
+            fi
+        fi
+    elif command_exists dnf; then
+        if rpm -q ghostty >/dev/null 2>&1; then
+            info "Uninstalling Ghostty via DNF..."
+            sudo dnf remove -y ghostty || warn "Ghostty uninstall encountered an issue"
+        fi
+    elif command_exists snap; then
+        if snap list ghostty >/dev/null 2>&1; then
+            info "Uninstalling Ghostty via Snap..."
+            sudo snap remove ghostty || warn "Ghostty uninstall encountered an issue"
+        fi
+    fi
+
+    if [ -d "$DOTFILES_DIR/ghostty" ]; then
+        stow -d "$DOTFILES_DIR" -t "$HOME" -D ghostty && ok "Ghostty config unstowed"
+    fi
+}
+
+uninstall_nvm() {
+    if command_exists brew && brew list --formula nvm >/dev/null 2>&1; then
+        info "Uninstalling NVM via Homebrew..."
+        brew uninstall nvm || warn "NVM uninstall encountered an issue"
+    fi
+
+    if [ -d "$HOME/.nvm" ]; then
+        info "Removing ~/.nvm..."
+        rm -rf "$HOME/.nvm"
+        ok "Removed ~/.nvm"
+    fi
+}
+
+uninstall_bun() {
+    if command_exists brew && brew list --formula bun >/dev/null 2>&1; then
+        info "Uninstalling Bun via Homebrew..."
+        brew uninstall bun || warn "Bun uninstall encountered an issue"
+    fi
+
+    if [ -d "$HOME/.bun" ]; then
+        info "Removing ~/.bun..."
+        rm -rf "$HOME/.bun"
+        ok "Removed ~/.bun"
+    fi
+}
+
+uninstall_deno() {
+    if command_exists brew && brew list --formula deno >/dev/null 2>&1; then
+        info "Uninstalling Deno via Homebrew..."
+        brew uninstall deno || warn "Deno uninstall encountered an issue"
+    fi
+
+    if [ -d "$HOME/.deno" ]; then
+        info "Removing ~/.deno..."
+        rm -rf "$HOME/.deno"
+        ok "Removed ~/.deno"
+    fi
+}
+
+uninstall_python() {
+    if command_exists brew && brew list --formula pyenv >/dev/null 2>&1; then
+        info "Uninstalling pyenv via Homebrew..."
+        brew uninstall pyenv || warn "pyenv uninstall encountered an issue"
+    elif command_exists apt-get; then
+        if dpkg -s pyenv >/dev/null 2>&1; then
+            info "Uninstalling pyenv via apt..."
+            sudo apt-get remove -y pyenv || warn "pyenv uninstall encountered an issue"
+        fi
+    fi
+
+    if [ -d "$HOME/.pyenv" ]; then
+        info "Removing ~/.pyenv (installed Python versions included)..."
+        rm -rf "$HOME/.pyenv"
+        ok "Removed ~/.pyenv"
+    fi
+}
+
+uninstall_docker() {
+    if command_exists brew && brew list --cask docker >/dev/null 2>&1; then
+        info "Uninstalling Docker Desktop via Homebrew..."
+        if [[ "$1" == true ]]; then
+            brew uninstall --cask --zap docker || warn "Docker uninstall encountered an issue"
+        else
+            brew uninstall --cask docker || warn "Docker uninstall encountered an issue"
+        fi
+    fi
+}
+
+uninstall_kubernetes() {
+    if command_exists brew; then
+        if brew list --formula kubectl >/dev/null 2>&1; then
+            info "Uninstalling kubectl via Homebrew..."
+            brew uninstall kubectl || warn "kubectl uninstall encountered an issue"
+        fi
+        if brew list --formula kubectx >/dev/null 2>&1; then
+            info "Uninstalling kubectx/kubens via Homebrew..."
+            brew uninstall kubectx || warn "kubectx uninstall encountered an issue"
+        fi
+    elif command_exists snap; then
+        if snap list kubectl >/dev/null 2>&1; then
+            info "Uninstalling kubectl via Snap..."
+            sudo snap remove kubectl || warn "kubectl uninstall encountered an issue"
+        fi
+    fi
+}
+
+uninstall_vscode() {
+    if command_exists brew && brew list --cask visual-studio-code >/dev/null 2>&1; then
+        info "Uninstalling VS Code via Homebrew..."
+        if [[ "$1" == true ]]; then
+            brew uninstall --cask --zap visual-studio-code || warn "VS Code uninstall encountered an issue"
+        else
+            brew uninstall --cask visual-studio-code || warn "VS Code uninstall encountered an issue"
+        fi
+    fi
+}
+
+uninstall_tool() {
+    local tool="$1"
+    local purge="$2"
+    case "$tool" in
+        ghostty)    uninstall_ghostty "$purge" ;;
+        nvm)        uninstall_nvm "$purge" ;;
+        bun)        uninstall_bun "$purge" ;;
+        deno)       uninstall_deno "$purge" ;;
+        python)     uninstall_python "$purge" ;;
+        docker)     uninstall_docker "$purge" ;;
+        kubernetes) uninstall_kubernetes "$purge" ;;
+        vscode)     uninstall_vscode "$purge" ;;
+    esac
+}
+
+handle_deselected_tools() {
+    local selected=("$@")
+    local deselected=()
+    local tool
+
+    for tool in "${DETECTED_TOOLS[@]}"; do
+        if ! array_contains "$tool" "${selected[@]}"; then
+            deselected+=("$tool")
+        fi
+    done
+
+    if [ ${#deselected[@]} -eq 0 ]; then
+        return
+    fi
+
+    echo ""
+    warn "You deselected installed tools."
+    tool_lineup "${deselected[@]}"
+
+    local remove_answer purge_answer purge=false
+    read -rp "Uninstall deselected tools and remove their managed config/data? [y/N]: " remove_answer < /dev/tty
+    case "$remove_answer" in
+        y|Y|yes|YES)
+            read -rp "Also purge package-manager leftovers where supported (Homebrew zap, etc.)? [y/N]: " purge_answer < /dev/tty
+            case "$purge_answer" in
+                y|Y|yes|YES) purge=true ;;
+            esac
+
+            info "Removing deselected tools..."
+            for tool in "${deselected[@]}"; do
+                uninstall_tool "$tool" "$purge"
+            done
+            ok "Deselected tool removal complete"
+            ;;
+        *)
+            info "Skipped deselected tool removal"
+            ;;
+    esac
+}
+
 # ── Stow Packages ───────────────────────────────────────
 stow_packages() {
     info "Stowing dotfiles..."
@@ -341,10 +578,13 @@ main() {
         echo ""
 
         if $select_all; then
+            detect_installed_tools
             SELECTED_TOOLS=("${TOOL_IDS[@]}")
         else
             show_menu
         fi
+
+        handle_deselected_tools "${SELECTED_TOOLS[@]}"
 
         if [ ${#SELECTED_TOOLS[@]} -gt 0 ]; then
             echo ""

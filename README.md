@@ -89,6 +89,8 @@ curl -sS https://starship.rs/install.sh | sh
     The menu uses arrow keys to navigate, spacebar to toggle, and enter to confirm. Tools already detected on your system are pre-selected:
 
     ```
+
+    If you deselect a tool that is currently installed, the installer now offers to remove it (and its managed data/config where applicable). It also asks whether to run a deeper package-manager purge when supported.
      ❯ [ ] Ghostty          GPU-accelerated terminal emulator
        [✔] NVM              Node Version Manager
        [✔] Bun              JavaScript runtime & bundler
@@ -193,7 +195,7 @@ Symlinks to `~/.config/starship/starship.toml`.
 
 ## Uninstalling
 
-To remove any package, unstow it:
+To remove core dotfile packages, unstow them:
 
 ```bash
 cd ~/.dotfiles
@@ -204,3 +206,5 @@ stow -D gitconfig
 ```
 
 This deletes only the symlinks — your original files are untouched. You may also want to remove the `# dotfiles-managed` source line from your `~/.zshrc` or `~/.bashrc`.
+
+For development tools (Ghostty, NVM, Bun, Deno, Python/pyenv, Docker, Kubernetes, VS Code), the easiest path is to rerun `./install.sh` and deselect the tools you want removed. The script will prompt you before uninstalling anything.
