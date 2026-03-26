@@ -39,7 +39,37 @@ ensure_homebrew_macos() {
 install_base_deps() {
     if command_exists brew; then
         info "Installing base dependencies via Homebrew..."
-        brew install stow git starship fzf 2>/dev/null || true
+        local pkg
+        for pkg in stow git starship fzf; do
+            if ! brew list --formula "$pkg" >/dev/null 2>&1; then
+                brew install "$pkg" || warn "Failed to install $pkg via Homebrew"
+            fi
+        done
+    elif command_exists apt-get; then
+        info "Installing base dependencies via apt..."
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq git stow fzf
+
+        if ! command_exists starship; then
+            info "Installing Starship prompt..."
+            curl -fsSL https://starship.rs/install.sh | sh -s -- -y
+        fi
+    elif command_exists dnf; then
+        info "Installing base dependencies via DNF..."
+        sudo dnf install -y git stow fzf || true
+
+        if ! command_exists starship; then
+            info "Installing Starship prompt..."
+            curl -fsSL https://starship.rs/install.sh | sh -s -- -y
+        fi
+    elif command_exists pacman; then
+        info "Installing base dependencies via pacman..."
+        sudo pacman -S --noconfirm git stow fzf || true
+
+        if ! command_exists starship; then
+            info "Installing Starship prompt..."
+            curl -fsSL https://starship.rs/install.sh | sh -s -- -y
+        fi
     else
         command_exists git      || fail "git is required. Install it and re-run."
         command_exists stow     || fail "stow is required. Install it and re-run."

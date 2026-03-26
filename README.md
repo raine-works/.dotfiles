@@ -208,3 +208,7 @@ stow -D gitconfig
 This deletes only the symlinks — your original files are untouched. You may also want to remove the `# dotfiles-managed` source line from your `~/.zshrc` or `~/.bashrc`.
 
 For development tools (Ghostty, NVM, Bun, Deno, Python/pyenv, Docker, Kubernetes, VS Code), the easiest path is to rerun `./install.sh` and deselect the tools you want removed. The script will prompt you before uninstalling anything.
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.

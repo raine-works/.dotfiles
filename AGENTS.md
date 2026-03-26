@@ -96,7 +96,7 @@ Always follow this pattern when adding a new tool file.
 
 ### `setup.sh` (bootstrap)
 1. Detects OS; installs Homebrew on macOS if missing
-2. Installs base deps: `stow`, `git`, `starship`, `fzf` via Homebrew or apt
+2. Installs base deps: `stow`, `git`, `starship`, `fzf` via Homebrew (macOS) or apt/dnf/pacman (Linux)
 3. Clones the repo to `~/.dotfiles`, or pulls latest if it already exists
 4. Execs into `install.sh`
 
@@ -136,9 +136,16 @@ Always follow this pattern when adding a new tool file.
 
 ### Adding a tool to the installer
 
-- Follow the `install_<toolname>` / `uninstall_<toolname>` function naming convention
-- Add the tool to the tool registry arrays at the top of `install.sh`
-- Installer functions should detect the platform and use the appropriate package manager
+1. Add one entry to the `TOOL_REGISTRY` array in `install.sh`:
+   ```bash
+   "<id>|Display Name|Short description"
+   ```
+2. Create `install_<id>()` — use `install_package` or `detect_package_manager` for multi-platform support.
+3. Create `uninstall_<id>()` — use `uninstall_via_brew` for Homebrew packages; handle other managers explicitly.
+4. Add a `verify_tool_installed()` case if the tool's command differs from its id.
+5. Add a `is_tool_detected()` case to enable pre-selection in the TUI menu.
+
+No array sync needed — `TOOL_IDS`, `TOOL_NAMES`, `TOOL_DESCS` are derived automatically from `TOOL_REGISTRY`.
 
 ### Adding cross-shell aliases or env vars
 
@@ -179,9 +186,7 @@ bash ~/.dotfiles/install.sh --no-tools
 
 ### Open
 
-- **No pre-flight backup before `stow --restow`** — existing symlinks pointing elsewhere can still be replaced once stow executes. A preflight conflict check now exists, but automated backup/restore is still not implemented.  
-  File: `install.sh`  
-  Next step: Add optional backup creation for conflicting targets before any restow operation.
+*(None — all known issues resolved.)*
 
 ---
 
@@ -199,3 +204,9 @@ bash ~/.dotfiles/install.sh --no-tools
 - **Fragile Homebrew path assumptions** removed in `setup.sh` and `install.sh` by resolving brew through `command -v`.
 - **`DOTFILES_REPO` hardcoded value** replaced in `setup.sh` with environment-default override.
 - **`set -e` without context** addressed in `setup.sh` and `install.sh` with line-aware ERR traps.
+- **No pre-flight backup before `stow --restow`** resolved: `backup_stow_conflicts()` now creates a dated tarball of conflicting targets in `~/.dotfiles-backups/` (retains last 5), and `restore_stow_backup()` offers interactive restore on stow failure. `install.sh`.
+- **Tool metadata duplication** eliminated: `TOOL_REGISTRY` single-source array replaced three parallel arrays; `TOOL_IDS`/`TOOL_NAMES`/`TOOL_DESCS` are derived automatically. `install.sh`.
+- **Repetitive uninstaller boilerplate** consolidated: `uninstall_via_brew()` helper extracts brew-formula/cask uninstall logic; each uninstaller reduced to a thin wrapper. `install.sh`.
+- **Linux installer coverage gaps** resolved: Docker, Kubernetes, VS Code, Bun, Deno, Python installers now support apt/dnf/pacman in addition to Homebrew. New `install_package()` and `detect_package_manager()` helpers. `install.sh`.
+- **Post-install PATH verification** added: `verify_tool_installed()` warns (non-blocking) when a tool's command is missing from PATH after install. `install.sh`.
+- **Linux base-dep bootstrap** improved in `setup.sh`: `install_base_deps()` now installs stow/git/starship/fzf via apt/dnf/pacman on Linux with per-package granularity rather than silent `|| true`.

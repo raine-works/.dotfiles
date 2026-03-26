@@ -25,6 +25,73 @@ android_studio_installed() {
     return 1
 }
 
+detect_android_sdk_dir() {
+    [ -n "$ANDROID_HOME" ] && [ -d "$ANDROID_HOME" ] && { echo "$ANDROID_HOME"; return 0; }
+    [ -n "$ANDROID_SDK_ROOT" ] && [ -d "$ANDROID_SDK_ROOT" ] && { echo "$ANDROID_SDK_ROOT"; return 0; }
+    [ -d "$HOME/Library/Android/Sdk" ] && { echo "$HOME/Library/Android/Sdk"; return 0; }
+    [ -d "$HOME/Library/Android/sdk" ] && { echo "$HOME/Library/Android/sdk"; return 0; }
+    [ -d "$HOME/Android/Sdk" ] && { echo "$HOME/Android/Sdk"; return 0; }
+    return 1
+}
+
+install_android_platform_tools() {
+    local sdk_dir=""
+    local sdkmanager_cmd=""
+    local brew_prefix=""
+
+    sdk_dir="$(detect_android_sdk_dir || true)"
+    if [ -z "$sdk_dir" ]; then
+        sdk_dir="$HOME/Library/Android/Sdk"
+        info "Android SDK path not found; bootstrapping default SDK root at $sdk_dir"
+        mkdir -p "$sdk_dir"
+    fi
+
+    export ANDROID_HOME="$sdk_dir"
+    export ANDROID_SDK_ROOT="$sdk_dir"
+
+    if command_exists sdkmanager; then
+        sdkmanager_cmd="$(command -v sdkmanager)"
+    elif [ -x "$sdk_dir/cmdline-tools/latest/bin/sdkmanager" ]; then
+        sdkmanager_cmd="$sdk_dir/cmdline-tools/latest/bin/sdkmanager"
+    elif [ -x "$sdk_dir/tools/bin/sdkmanager" ]; then
+        sdkmanager_cmd="$sdk_dir/tools/bin/sdkmanager"
+    elif command_exists brew; then
+        brew_prefix="$(brew --prefix 2>/dev/null || true)"
+        if [ -n "$brew_prefix" ] && [ -x "$brew_prefix/share/android-commandlinetools/cmdline-tools/bin/sdkmanager" ]; then
+            sdkmanager_cmd="$brew_prefix/share/android-commandlinetools/cmdline-tools/bin/sdkmanager"
+        fi
+    fi
+
+    if [ -z "$sdkmanager_cmd" ]; then
+        if command_exists brew; then
+            info "Installing Android command-line tools via Homebrew..."
+            brew install --cask android-commandlinetools || true
+
+            brew_prefix="$(brew --prefix 2>/dev/null || true)"
+            if [ -n "$brew_prefix" ] && [ -x "$brew_prefix/share/android-commandlinetools/cmdline-tools/bin/sdkmanager" ]; then
+                sdkmanager_cmd="$brew_prefix/share/android-commandlinetools/cmdline-tools/bin/sdkmanager"
+            fi
+        fi
+    fi
+
+    if [ -z "$sdkmanager_cmd" ]; then
+        warn "sdkmanager not found; cannot automate platform-tools yet."
+        warn "Install 'Android SDK Command-line Tools (latest)' in Android Studio > SDK Manager, then re-run installer."
+        return 1
+    fi
+
+    info "Installing Android SDK Platform-Tools via sdkmanager..."
+    yes | "$sdkmanager_cmd" --sdk_root="$sdk_dir" --licenses >/dev/null 2>&1 || true
+    if "$sdkmanager_cmd" --sdk_root="$sdk_dir" --install "platform-tools"; then
+        ok "Android SDK Platform-Tools installed/updated"
+        return 0
+    fi
+
+    warn "Automatic platform-tools install failed."
+    warn "Install manually via Android Studio > SDK Manager and re-run installer."
+    return 1
+}
+
 on_err() {
     local line_no="$1"
     local exit_code="$2"
@@ -39,13 +106,77 @@ eval_brew_shellenv() {
     [ -n "$brew_bin" ] && eval "$("$brew_bin" shellenv)"
 }
 
+BACKUP_DIR="$HOME/.dotfiles-backups"
+BACKUP_ARCHIVE=""
+
+backup_stow_conflicts() {
+    local pkg="$1"
+    local conflicts=()
+    local line target
+
+    while IFS= read -r line; do
+        if [[ "$line" =~ \*\ stowing\ .*\ would\ cause\ conflicts: ]] || \
+           [[ "$line" =~ \*\ existing\ target\ is ]] || \
+           [[ "$line" =~ \*\ cannot\ stow ]]; then
+            continue
+        fi
+        target=$(echo "$line" | grep -oE '~?/[^ ]+' | head -1 || true)
+        if [ -n "$target" ]; then
+            target="${target/\~/$HOME}"
+            [ -e "$target" ] || [ -L "$target" ] && conflicts+=("$target")
+        fi
+    done < <(stow -n --simulate -d "$DOTFILES_DIR" -t "$HOME" --restow "$pkg" 2>&1 || true)
+
+    if [ ${#conflicts[@]} -eq 0 ]; then
+        return 0
+    fi
+
+    mkdir -p "$BACKUP_DIR"
+    local timestamp
+    timestamp="$(date -u +%Y-%m-%dT%H%M%SZ)"
+    BACKUP_ARCHIVE="$BACKUP_DIR/dotfiles-backup-${pkg}-${timestamp}.tar.gz"
+
+    info "Backing up ${#conflicts[@]} conflicting file(s) to $BACKUP_ARCHIVE ..."
+    tar -czf "$BACKUP_ARCHIVE" --ignore-failed-read "${conflicts[@]}" 2>/dev/null || true
+    ok "Backup created: $BACKUP_ARCHIVE"
+
+    # Trim backups to the last 5 per package prefix
+    local count
+    count=$(find "$BACKUP_DIR" -maxdepth 1 -name "dotfiles-backup-${pkg}-*.tar.gz" | wc -l | tr -d ' ')
+    if (( count > 5 )); then
+        find "$BACKUP_DIR" -maxdepth 1 -name "dotfiles-backup-${pkg}-*.tar.gz" \
+            | sort | head -n $(( count - 5 )) | xargs rm -f
+    fi
+
+    return 0
+}
+
+restore_stow_backup() {
+    if [ -z "$BACKUP_ARCHIVE" ] || [ ! -f "$BACKUP_ARCHIVE" ]; then
+        return 0
+    fi
+
+    local answer
+    printf "\n"
+    warn "Stow operation failed. A backup was saved to: $BACKUP_ARCHIVE"
+    read -rp "Restore the backup now? [Y/n]: " answer < /dev/tty
+    case "$answer" in
+        n|N|no|NO) info "Backup retained at $BACKUP_ARCHIVE — restore manually with: tar -xzf $BACKUP_ARCHIVE -C /" ;;
+        *) tar -xzf "$BACKUP_ARCHIVE" -C / 2>/dev/null || tar -xzf "$BACKUP_ARCHIVE" -C "$HOME" 2>/dev/null || true
+           ok "Backup restored" ;;
+    esac
+}
+
 check_stow_preflight() {
     local pkg="$1"
     local output
 
+    backup_stow_conflicts "$pkg"
+
     if ! output=$(stow -n --simulate -d "$DOTFILES_DIR" -t "$HOME" --restow "$pkg" 2>&1); then
         warn "Stow preflight failed for package: $pkg"
         printf "%s\n" "$output" >&2
+        restore_stow_backup
         fail "Resolve the stow conflicts above and re-run installer."
     fi
 }
@@ -56,8 +187,10 @@ restow_package() {
 
     check_stow_preflight "$pkg"
     if stow -d "$DOTFILES_DIR" -t "$HOME" --restow "$pkg"; then
+        BACKUP_ARCHIVE=""
         ok "$label"
     else
+        restore_stow_backup
         fail "Failed to stow package: $pkg"
     fi
 }
@@ -105,7 +238,7 @@ is_tool_detected() {
         docker)     command_exists docker ;;
         kubernetes) command_exists kubectl ;;
         vscode)     command_exists code ;;
-        android-sdk) android_studio_installed || [ -d "$HOME/Library/Android/sdk" ] || [ -d "$HOME/Android/Sdk" ] ;;
+        android-sdk) android_studio_installed || [ -d "$HOME/Library/Android/Sdk" ] || [ -d "$HOME/Library/Android/sdk" ] || [ -d "$HOME/Android/Sdk" ] ;;
         *)          return 1 ;;
     esac
 }
@@ -131,9 +264,28 @@ tool_lineup() {
 }
 
 # ── Tool Registry ───────────────────────────────────────
-TOOL_IDS=(    ghostty            nvm               bun                            deno                               python                          docker                                   kubernetes            vscode                 android-sdk)
-TOOL_NAMES=(  "Ghostty"          "NVM"             "Bun"                          "Deno"                             "Python"                        "Docker"                                 "Kubernetes"          "VS Code"              "Android Studio")
-TOOL_DESCS=(  "GPU-accelerated terminal emulator"  "Node Version Manager"  "JavaScript runtime & bundler"  "Secure JavaScript/TypeScript runtime"  "Python 3 via pyenv version manager"  "Docker Desktop for containers"              "kubectl + kubectx/kubens aliases"  "Visual Studio Code editor"  "Android Studio (SDK Manager + emulator)")
+# Format: "id|Display Name|Description"
+# Adding a tool: add one entry here + create install_<id>() and uninstall_<id>() functions.
+TOOL_REGISTRY=(
+    "ghostty|Ghostty|GPU-accelerated terminal emulator"
+    "nvm|NVM|Node Version Manager"
+    "bun|Bun|JavaScript runtime & bundler"
+    "deno|Deno|Secure JavaScript/TypeScript runtime"
+    "python|Python|Python 3 via pyenv version manager"
+    "docker|Docker|Docker Desktop for containers"
+    "kubernetes|Kubernetes|kubectl + kubectx/kubens aliases"
+    "vscode|VS Code|Visual Studio Code editor"
+    "android-sdk|Android Studio|Android Studio (SDK Manager + emulator)"
+)
+
+TOOL_IDS=() TOOL_NAMES=() TOOL_DESCS=()
+for _entry in "${TOOL_REGISTRY[@]}"; do
+    IFS='|' read -r _id _name _desc <<< "$_entry"
+    TOOL_IDS+=("$_id")
+    TOOL_NAMES+=("$_name")
+    TOOL_DESCS+=("$_desc")
+done
+unset _entry _id _name _desc
 
 # ── Interactive Tool Menu ────────────────────────────────
 show_menu() {
@@ -201,6 +353,45 @@ show_menu() {
 }
 
 # ── Tool Installers ──────────────────────────────────────
+# detect_package_manager: echo the first available manager (brew|apt|dnf|pacman)
+detect_package_manager() {
+    if command_exists brew;    then echo "brew";   return; fi
+    if command_exists apt-get; then echo "apt";    return; fi
+    if command_exists dnf;     then echo "dnf";    return; fi
+    if command_exists pacman;  then echo "pacman"; return; fi
+    echo ""
+}
+
+# install_package BREW_PKG APT_PKG DNF_PKG PACMAN_PKG [--cask]
+# Installs a package from whichever manager is available.
+# Pass empty string "" for a manager that has no package.
+install_package() {
+    local brew_pkg="$1" apt_pkg="$2" dnf_pkg="$3" pacman_pkg="$4"
+    local is_cask=false
+    [[ "${5:-}" == "--cask" ]] && is_cask=true
+    local pm
+    pm="$(detect_package_manager)"
+    case "$pm" in
+        brew)
+            if $is_cask; then
+                brew install --cask "$brew_pkg"
+            else
+                brew install "$brew_pkg"
+            fi ;;
+        apt)
+            [ -z "$apt_pkg" ] && return 1
+            sudo apt-get update -qq && sudo apt-get install -y -qq "$apt_pkg" ;;
+        dnf)
+            [ -z "$dnf_pkg" ] && return 1
+            sudo dnf install -y "$dnf_pkg" ;;
+        pacman)
+            [ -z "$pacman_pkg" ] && return 1
+            sudo pacman -S --noconfirm "$pacman_pkg" ;;
+        *)
+            return 1 ;;
+    esac
+}
+
 install_ghostty() {
     if command_exists ghostty; then
         ok "Ghostty already installed"
@@ -251,8 +442,16 @@ install_bun() {
         ok "Bun already installed"
         return
     fi
-    info "Installing Bun..."
-    bash <(curl -fsSL https://bun.sh/install)
+    if command_exists brew; then
+        info "Installing Bun via Homebrew..."
+        brew install oven-sh/bun/bun
+    elif command_exists apt-get || command_exists dnf || command_exists pacman; then
+        info "Installing Bun via install script..."
+        bash <(curl -fsSL https://bun.sh/install)
+    else
+        info "Installing Bun via install script..."
+        bash <(curl -fsSL https://bun.sh/install)
+    fi
     ok "Bun installed"
 }
 
@@ -264,9 +463,18 @@ install_deno() {
     if command_exists brew; then
         info "Installing Deno via Homebrew..."
         brew install deno
-    else
+    elif command_exists pacman; then
+        info "Installing Deno via pacman..."
+        sudo pacman -S --noconfirm deno
+    elif command_exists dnf; then
         info "Installing Deno via install script..."
         bash <(curl -fsSL https://deno.land/install.sh)
+    elif command_exists apt-get; then
+        info "Installing Deno via install script..."
+        bash <(curl -fsSL https://deno.land/install.sh)
+    else
+        warn "Install Deno manually: https://deno.land/#installation"
+        return
     fi
     ok "Deno installed"
 }
@@ -309,8 +517,31 @@ install_docker() {
         info "Installing Docker Desktop via Homebrew..."
         brew install --cask docker
         ok "Docker Desktop installed"
+    elif command_exists apt-get; then
+        info "Installing Docker Engine via apt..."
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq ca-certificates curl gnupg lsb-release
+        sudo install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+        sudo chmod a+r /etc/apt/keyrings/docker.gpg
+        echo "deb [arch=\"$(dpkg --print-architecture)\" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \"$(lsb_release -cs)\" stable" | sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+        ok "Docker Engine installed"
+    elif command_exists dnf; then
+        info "Installing Docker Engine via DNF..."
+        sudo dnf -y install dnf-plugins-core
+        sudo dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
+        sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+        sudo systemctl enable --now docker
+        ok "Docker Engine installed"
+    elif command_exists pacman; then
+        info "Installing Docker via pacman..."
+        sudo pacman -S --noconfirm docker docker-compose
+        sudo systemctl enable --now docker
+        ok "Docker installed"
     else
-        warn "Install Docker Desktop manually: https://www.docker.com/products/docker-desktop/"
+        warn "Install Docker manually: https://www.docker.com/products/docker-desktop/"
     fi
 }
 
@@ -321,9 +552,28 @@ install_kubernetes() {
             brew install kubectl
             ok "kubectl installed"
         elif command_exists apt-get; then
-            info "Installing kubectl via snap..."
-            sudo snap install kubectl --classic 2>/dev/null && ok "kubectl installed" \
-                || warn "kubectl install failed — install it manually."
+            info "Installing kubectl via apt..."
+            sudo apt-get update -qq && sudo apt-get install -y -qq apt-transport-https gnupg
+            curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+            echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list >/dev/null
+            sudo apt-get update -qq && sudo apt-get install -y -qq kubectl
+            ok "kubectl installed"
+        elif command_exists dnf; then
+            info "Installing kubectl via DNF..."
+            cat <<'EOF' | sudo tee /etc/yum.repos.d/kubernetes.repo >/dev/null
+[kubernetes]
+name=Kubernetes
+baseurl=https://pkgs.k8s.io/core:/stable:/v1.29/rpm/
+enabled=1
+gpgcheck=1
+gpgkey=https://pkgs.k8s.io/core:/stable:/v1.29/rpm/repodata/repomd.xml.key
+EOF
+            sudo dnf install -y kubectl
+            ok "kubectl installed"
+        elif command_exists pacman; then
+            info "Installing kubectl via pacman..."
+            sudo pacman -S --noconfirm kubectl
+            ok "kubectl installed"
         else
             warn "Install kubectl manually: https://kubernetes.io/docs/tasks/tools/"
         fi
@@ -331,10 +581,22 @@ install_kubernetes() {
         ok "kubectl already installed"
     fi
 
-    if ! command_exists kubectx && command_exists brew; then
-        info "Installing kubectx & kubens via Homebrew..."
-        brew install kubectx
-        ok "kubectx installed"
+    if ! command_exists kubectx; then
+        if command_exists brew; then
+            info "Installing kubectx & kubens via Homebrew..."
+            brew install kubectx
+            ok "kubectx installed"
+        elif command_exists apt-get; then
+            info "Installing kubectx via apt..."
+            sudo apt-get install -y -qq kubectx 2>/dev/null || {
+                warn "kubectx not in apt — install manually: https://github.com/ahmetb/kubectx"
+            }
+        elif command_exists pacman; then
+            info "Installing kubectx via pacman..."
+            sudo pacman -S --noconfirm kubectx 2>/dev/null || {
+                warn "kubectx not in pacman — install manually: https://github.com/ahmetb/kubectx"
+            }
+        fi
     fi
 }
 
@@ -347,6 +609,26 @@ install_vscode() {
         info "Installing VS Code via Homebrew..."
         brew install --cask visual-studio-code
         ok "VS Code installed"
+    elif command_exists apt-get; then
+        info "Installing VS Code via apt..."
+        sudo apt-get install -y -qq wget gpg
+        wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > /tmp/packages.microsoft.gpg
+        sudo install -o root -g root -m 644 /tmp/packages.microsoft.gpg /etc/apt/keyrings/packages.microsoft.gpg
+        rm -f /tmp/packages.microsoft.gpg
+        echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | sudo tee /etc/apt/sources.list.d/vscode.list >/dev/null
+        sudo apt-get update -qq && sudo apt-get install -y -qq code
+        ok "VS Code installed"
+    elif command_exists dnf; then
+        info "Installing VS Code via DNF..."
+        sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
+        sudo sh -c 'echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com/yumrepos/vscode\nenabled=1\ngpgcheck=1\ngpgkey=https://packages.microsoft.com/keys/microsoft.asc" > /etc/yum.repos.d/vscode.repo'
+        sudo dnf install -y code
+        ok "VS Code installed"
+    elif command_exists pacman; then
+        info "Installing VS Code (OSS) via pacman..."
+        sudo pacman -S --noconfirm code 2>/dev/null || {
+            warn "code not in pacman — try AUR (yay -S visual-studio-code-bin) or download from https://code.visualstudio.com/"
+        }
     else
         warn "Install VS Code manually: https://code.visualstudio.com/"
     fi
@@ -356,13 +638,13 @@ install_android_sdk() {
     if [[ "$(uname)" != "Darwin" ]]; then
         warn "Automatic Android Studio install is currently macOS-only in this installer."
         warn "Install Android Studio manually: https://developer.android.com/studio"
-        warn "Then ensure ANDROID_HOME points to ~/Library/Android/sdk (macOS) or ~/Android/Sdk (Linux)."
+        warn "Then ensure ANDROID_HOME points to ~/Library/Android/Sdk (or ~/Library/Android/sdk) on macOS, or ~/Android/Sdk on Linux."
         return
     fi
 
     if android_studio_installed; then
         ok "Android Studio already installed"
-        warn "If platform-tools are missing, open Android Studio > SDK Manager and install 'Android SDK Platform-Tools'."
+        install_android_platform_tools || true
         return
     fi
 
@@ -370,7 +652,7 @@ install_android_sdk() {
         info "Installing Android Studio via Homebrew..."
         if brew install --cask android-studio; then
             ok "Android Studio installed"
-            warn "Use Android Studio > SDK Manager to install or update platform-tools as needed."
+            install_android_platform_tools || true
             return
         fi
 
@@ -379,8 +661,28 @@ install_android_sdk() {
         warn "Then open SDK Manager to install platform-tools if needed."
     else
         warn "Install Android Studio manually: https://developer.android.com/studio"
-        warn "Then ensure ANDROID_HOME points to ~/Library/Android/sdk (macOS) or ~/Android/Sdk (Linux)."
+        warn "Then ensure ANDROID_HOME points to ~/Library/Android/Sdk (or ~/Library/Android/sdk) on macOS, or ~/Android/Sdk on Linux."
     fi
+}
+
+verify_tool_installed() {
+    local tool="$1"
+    local cmd
+    case "$tool" in
+        ghostty)     cmd="ghostty" ;;
+        nvm)         [ -d "$HOME/.nvm" ] && return 0; return 1 ;;
+        bun)         cmd="bun" ;;
+        deno)        cmd="deno" ;;
+        python)      cmd="pyenv" ;;
+        docker)      cmd="docker" ;;
+        kubernetes)  cmd="kubectl" ;;
+        vscode)      cmd="code" ;;
+        android-sdk) android_studio_installed && return 0; return 1 ;;
+        *)           return 0 ;;
+    esac
+    command_exists "$cmd" && return 0
+    warn "$tool installed but '${cmd}' not found in PATH — you may need to restart your shell."
+    return 0
 }
 
 install_tool() {
@@ -398,52 +700,58 @@ install_tool() {
         *)          warn "No install handler for tool: $tool" ;;
     esac
 
+    verify_tool_installed "$tool"
     return 0
 }
 
 # ── Tool Uninstallers ───────────────────────────────────
-uninstall_ghostty() {
-    if command_exists brew; then
-        if brew list --cask ghostty >/dev/null 2>&1; then
-            info "Uninstalling Ghostty via Homebrew..."
-            if [[ "$1" == true ]]; then
-                brew uninstall --cask --zap ghostty || warn "Ghostty uninstall encountered an issue"
-            else
-                brew uninstall --cask ghostty || warn "Ghostty uninstall encountered an issue"
-            fi
-        fi
-    elif command_exists pacman; then
-        if pacman -Q ghostty >/dev/null 2>&1; then
-            info "Uninstalling Ghostty via pacman..."
-            if [[ "$1" == true ]]; then
-                sudo pacman -Rns --noconfirm ghostty || warn "Ghostty uninstall encountered an issue"
-            else
-                sudo pacman -R --noconfirm ghostty || warn "Ghostty uninstall encountered an issue"
-            fi
-        fi
-    elif command_exists dnf; then
-        if rpm -q ghostty >/dev/null 2>&1; then
-            info "Uninstalling Ghostty via DNF..."
-            sudo dnf remove -y ghostty || warn "Ghostty uninstall encountered an issue"
-        fi
-    elif command_exists snap; then
-        if snap list ghostty >/dev/null 2>&1; then
-            info "Uninstalling Ghostty via Snap..."
-            sudo snap remove ghostty || warn "Ghostty uninstall encountered an issue"
-        fi
+# uninstall_via_brew FORMULA_OR_CASK type [purge]
+#   type: formula | cask
+#   purge: true → add --zap for casks
+uninstall_via_brew() {
+    local pkg="$1" type="$2" purge="${3:-false}"
+    command_exists brew || return 0
+
+    local list_flag=""
+    local uninstall_flags=()
+    if [[ "$type" == "cask" ]]; then
+        list_flag="--cask"
+        uninstall_flags=(--cask)
+        [[ "$purge" == true ]] && uninstall_flags+=(--zap)
+    else
+        list_flag="--formula"
     fi
 
+    if brew list $list_flag "$pkg" >/dev/null 2>&1; then
+        info "Uninstalling $pkg via Homebrew..."
+        brew uninstall "${uninstall_flags[@]}" "$pkg" || warn "$pkg uninstall encountered an issue"
+    fi
+}
+
+uninstall_ghostty() {
+    local purge="${1:-false}"
+    uninstall_via_brew ghostty cask "$purge"
+    if command_exists pacman && pacman -Q ghostty >/dev/null 2>&1; then
+        info "Uninstalling Ghostty via pacman..."
+        if [[ "$purge" == true ]]; then
+            sudo pacman -Rns --noconfirm ghostty || warn "Ghostty uninstall encountered an issue"
+        else
+            sudo pacman -R --noconfirm ghostty || warn "Ghostty uninstall encountered an issue"
+        fi
+    elif command_exists dnf && rpm -q ghostty >/dev/null 2>&1; then
+        info "Uninstalling Ghostty via DNF..."
+        sudo dnf remove -y ghostty || warn "Ghostty uninstall encountered an issue"
+    elif command_exists snap && snap list ghostty >/dev/null 2>&1; then
+        info "Uninstalling Ghostty via Snap..."
+        sudo snap remove ghostty || warn "Ghostty uninstall encountered an issue"
+    fi
     if [ -d "$DOTFILES_DIR/ghostty" ]; then
         unstow_package "ghostty" "Ghostty config unstowed"
     fi
 }
 
 uninstall_nvm() {
-    if command_exists brew && brew list --formula nvm >/dev/null 2>&1; then
-        info "Uninstalling NVM via Homebrew..."
-        brew uninstall nvm || warn "NVM uninstall encountered an issue"
-    fi
-
+    uninstall_via_brew nvm formula
     if [ -d "$HOME/.nvm" ]; then
         info "Removing ~/.nvm..."
         rm -rf "$HOME/.nvm"
@@ -452,11 +760,7 @@ uninstall_nvm() {
 }
 
 uninstall_bun() {
-    if command_exists brew && brew list --formula bun >/dev/null 2>&1; then
-        info "Uninstalling Bun via Homebrew..."
-        brew uninstall bun || warn "Bun uninstall encountered an issue"
-    fi
-
+    uninstall_via_brew bun formula
     if [ -d "$HOME/.bun" ]; then
         info "Removing ~/.bun..."
         rm -rf "$HOME/.bun"
@@ -465,11 +769,7 @@ uninstall_bun() {
 }
 
 uninstall_deno() {
-    if command_exists brew && brew list --formula deno >/dev/null 2>&1; then
-        info "Uninstalling Deno via Homebrew..."
-        brew uninstall deno || warn "Deno uninstall encountered an issue"
-    fi
-
+    uninstall_via_brew deno formula
     if [ -d "$HOME/.deno" ]; then
         info "Removing ~/.deno..."
         rm -rf "$HOME/.deno"
@@ -478,16 +778,11 @@ uninstall_deno() {
 }
 
 uninstall_python() {
-    if command_exists brew && brew list --formula pyenv >/dev/null 2>&1; then
-        info "Uninstalling pyenv via Homebrew..."
-        brew uninstall pyenv || warn "pyenv uninstall encountered an issue"
-    elif command_exists apt-get; then
-        if dpkg -s pyenv >/dev/null 2>&1; then
-            info "Uninstalling pyenv via apt..."
-            sudo apt-get remove -y pyenv || warn "pyenv uninstall encountered an issue"
-        fi
+    uninstall_via_brew pyenv formula
+    if command_exists apt-get && dpkg -s pyenv >/dev/null 2>&1; then
+        info "Uninstalling pyenv via apt..."
+        sudo apt-get remove -y pyenv || warn "pyenv uninstall encountered an issue"
     fi
-
     if [ -d "$HOME/.pyenv" ]; then
         info "Removing ~/.pyenv (installed Python versions included)..."
         rm -rf "$HOME/.pyenv"
@@ -496,85 +791,33 @@ uninstall_python() {
 }
 
 uninstall_docker() {
-    if command_exists brew && brew list --cask docker >/dev/null 2>&1; then
-        info "Uninstalling Docker Desktop via Homebrew..."
-        if [[ "$1" == true ]]; then
-            brew uninstall --cask --zap docker || warn "Docker uninstall encountered an issue"
-        else
-            brew uninstall --cask docker || warn "Docker uninstall encountered an issue"
-        fi
-    fi
+    uninstall_via_brew docker cask "${1:-false}"
 }
 
 uninstall_kubernetes() {
-    if command_exists brew; then
-        if brew list --formula kubectl >/dev/null 2>&1; then
-            info "Uninstalling kubectl via Homebrew..."
-            brew uninstall kubectl || warn "kubectl uninstall encountered an issue"
-        fi
-        if brew list --formula kubectx >/dev/null 2>&1; then
-            info "Uninstalling kubectx/kubens via Homebrew..."
-            brew uninstall kubectx || warn "kubectx uninstall encountered an issue"
-        fi
-    elif command_exists snap; then
-        if snap list kubectl >/dev/null 2>&1; then
-            info "Uninstalling kubectl via Snap..."
-            sudo snap remove kubectl || warn "kubectl uninstall encountered an issue"
-        fi
+    uninstall_via_brew kubectl formula
+    uninstall_via_brew kubectx formula
+    if command_exists snap && snap list kubectl >/dev/null 2>&1; then
+        info "Uninstalling kubectl via Snap..."
+        sudo snap remove kubectl || warn "kubectl uninstall encountered an issue"
     fi
 }
 
 uninstall_vscode() {
-    if command_exists brew && brew list --cask visual-studio-code >/dev/null 2>&1; then
-        info "Uninstalling VS Code via Homebrew..."
-        if [[ "$1" == true ]]; then
-            brew uninstall --cask --zap visual-studio-code || warn "VS Code uninstall encountered an issue"
-        else
-            brew uninstall --cask visual-studio-code || warn "VS Code uninstall encountered an issue"
-        fi
-    fi
+    uninstall_via_brew visual-studio-code cask "${1:-false}"
 }
 
 uninstall_android_sdk() {
-    if command_exists brew; then
-        if brew list --cask android-studio >/dev/null 2>&1; then
-            info "Uninstalling Android Studio via Homebrew..."
-            if [[ "$1" == true ]]; then
-                brew uninstall --cask --zap android-studio || warn "Android Studio uninstall encountered an issue"
-            else
-                brew uninstall --cask android-studio || warn "Android Studio uninstall encountered an issue"
-            fi
-        fi
-
-        # Legacy cleanup for earlier installer behavior.
-        if brew list --formula android-sdk >/dev/null 2>&1; then
-            info "Uninstalling legacy Android SDK formula via Homebrew..."
-            brew uninstall android-sdk || warn "Android SDK uninstall encountered an issue"
-        elif brew list --cask android-sdk >/dev/null 2>&1; then
-            info "Uninstalling legacy Android SDK cask via Homebrew..."
-            if [[ "$1" == true ]]; then
-                brew uninstall --cask --zap android-sdk || warn "Android SDK uninstall encountered an issue"
-            else
-                brew uninstall --cask android-sdk || warn "Android SDK uninstall encountered an issue"
-            fi
-        fi
-
-        if brew list --cask android-commandlinetools >/dev/null 2>&1; then
-            info "Uninstalling legacy Android command-line tools cask via Homebrew..."
-            if [[ "$1" == true ]]; then
-                brew uninstall --cask --zap android-commandlinetools || warn "Android command-line tools uninstall encountered an issue"
-            else
-                brew uninstall --cask android-commandlinetools || warn "Android command-line tools uninstall encountered an issue"
-            fi
-        fi
-    fi
-
+    local purge="${1:-false}"
+    uninstall_via_brew android-studio cask "$purge"
+    uninstall_via_brew android-sdk formula
+    uninstall_via_brew android-sdk cask "$purge"
+    uninstall_via_brew android-commandlinetools cask "$purge"
     if [ -d "$HOME/Library/Android/sdk" ]; then
         info "Removing ~/Library/Android/sdk..."
         rm -rf "$HOME/Library/Android/sdk"
         ok "Removed ~/Library/Android/sdk"
     fi
-
     if [ -d "$HOME/Android/Sdk" ]; then
         info "Removing ~/Android/Sdk..."
         rm -rf "$HOME/Android/Sdk"
