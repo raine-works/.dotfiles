@@ -45,6 +45,7 @@ is_tool_detected() {
         docker)     command_exists docker ;;
         kubernetes) command_exists kubectl ;;
         vscode)     command_exists code ;;
+        android-sdk) [ -d "$HOME/Library/Android/sdk" ] ;;
         *)          return 1 ;;
     esac
 }
@@ -66,9 +67,9 @@ tool_lineup() {
 }
 
 # ── Tool Registry ───────────────────────────────────────
-TOOL_IDS=(    ghostty            nvm               bun                            deno                               python                          docker                                   kubernetes            vscode)
-TOOL_NAMES=(  "Ghostty"          "NVM"             "Bun"                          "Deno"                             "Python"                        "Docker"                                 "Kubernetes"          "VS Code")
-TOOL_DESCS=(  "GPU-accelerated terminal emulator"  "Node Version Manager"  "JavaScript runtime & bundler"  "Secure JavaScript/TypeScript runtime"  "Python 3 via pyenv version manager"  "Docker Desktop for containers"              "kubectl + kubectx/kubens aliases"  "Visual Studio Code editor")
+TOOL_IDS=(    ghostty            nvm               bun                            deno                               python                          docker                                   kubernetes            vscode                 android-sdk)
+TOOL_NAMES=(  "Ghostty"          "NVM"             "Bun"                          "Deno"                             "Python"                        "Docker"                                 "Kubernetes"          "VS Code"              "Android SDK")
+TOOL_DESCS=(  "GPU-accelerated terminal emulator"  "Node Version Manager"  "JavaScript runtime & bundler"  "Secure JavaScript/TypeScript runtime"  "Python 3 via pyenv version manager"  "Docker Desktop for containers"              "kubectl + kubectx/kubens aliases"  "Visual Studio Code editor"  "Android SDK tools & emulator")
 
 # ── Interactive Tool Menu ────────────────────────────────
 show_menu() {
@@ -283,6 +284,22 @@ install_vscode() {
     fi
 }
 
+install_android_sdk() {
+    if [ -d "$HOME/Library/Android/sdk" ]; then
+        ok "Android SDK already installed"
+        return
+    fi
+    
+    if command_exists brew; then
+        info "Installing Android SDK via Homebrew..."
+        brew install android-sdk
+        ok "Android SDK installed"
+    else
+        warn "Install Android SDK manually: https://developer.android.com/studio/command-line-tools"
+        warn "Then set ANDROID_HOME=\$HOME/Library/Android/sdk (already configured in shell tools)"
+    fi
+}
+
 # ── Tool Uninstallers ───────────────────────────────────
 uninstall_ghostty() {
     if command_exists brew; then
@@ -417,6 +434,23 @@ uninstall_vscode() {
     fi
 }
 
+uninstall_android_sdk() {
+    if command_exists brew && brew list --cask android-sdk >/dev/null 2>&1; then
+        info "Uninstalling Android SDK via Homebrew..."
+        if [[ "$1" == true ]]; then
+            brew uninstall --cask --zap android-sdk || warn "Android SDK uninstall encountered an issue"
+        else
+            brew uninstall --cask android-sdk || warn "Android SDK uninstall encountered an issue"
+        fi
+    fi
+
+    if [ -d "$HOME/Library/Android/sdk" ]; then
+        info "Removing ~/Library/Android/sdk..."
+        rm -rf "$HOME/Library/Android/sdk"
+        ok "Removed ~/Library/Android/sdk"
+    fi
+}
+
 uninstall_tool() {
     local tool="$1"
     local purge="$2"
@@ -429,6 +463,7 @@ uninstall_tool() {
         docker)     uninstall_docker "$purge" ;;
         kubernetes) uninstall_kubernetes "$purge" ;;
         vscode)     uninstall_vscode "$purge" ;;
+        android-sdk) uninstall_android_sdk "$purge" ;;
     esac
 }
 
