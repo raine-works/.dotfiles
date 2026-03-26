@@ -4,7 +4,7 @@
 
 # 1. ENVIRONMENT
 # ---------------------------------------------------------
-export HOST_IP=$(ipconfig getifaddr en0 || ipconfig getifaddr en1 2>/dev/null)
+export HOST_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null)
 export STARSHIP_CONFIG=~/.config/starship/starship.toml
 
 # 2. GENERAL ALIASES

@@ -46,7 +46,7 @@ The setup script will:
 5. Ensure **GNU Stow** is available (defensive check; installs via Homebrew if needed)
 6. Stow the core packages (`shell`, `starship`, `gitconfig`) into `$HOME`
 7. Inject a single `source` line into your existing `~/.zshrc` or `~/.bashrc` (your current config is never overwritten)
-8. Launch an **interactive tool picker** — choose which dev tools to install and configure (Ghostty, NVM, Bun, Deno, Python, Docker, Kubernetes, VS Code)
+8. Launch an **interactive tool picker** — choose which dev tools to install and configure (Ghostty, NVM, Bun, Deno, Python, Docker, Kubernetes, VS Code, Android Studio)
 9. Prompt you to create a local `~/.gitconfig.local` for your Git identity
 
 ## Manual Installation

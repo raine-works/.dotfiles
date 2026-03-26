@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-set -e
+set -Ee
 
 DOTFILES_DIR="$(cd "$(dirname "$0")" && pwd)"
 PACKAGES=(shell starship gitconfig)
-SOURCE_TAG="# dotfiles-managed"
+SOURCE_TAG="# dotfiles-managed:raine-works"
+LEGACY_SOURCE_TAG="# dotfiles-managed"
 DETECTED_TOOLS=()
 
 # ── Helpers ──────────────────────────────────────────────
@@ -12,6 +13,65 @@ ok()    { printf "\033[1;32m[ok]\033[0m    %s\n" "$1"; }
 warn()  { printf "\033[1;33m[warn]\033[0m  %s\n" "$1"; }
 fail()  { printf "\033[1;31m[error]\033[0m %s\n" "$1" >&2; exit 1; }
 command_exists() { command -v "$1" >/dev/null 2>&1; }
+
+android_studio_installed() {
+    [ -d "/Applications/Android Studio.app" ] && return 0
+    [ -d "$HOME/Applications/Android Studio.app" ] && return 0
+
+    if command_exists brew; then
+        brew list --cask android-studio >/dev/null 2>&1 && return 0
+    fi
+
+    return 1
+}
+
+on_err() {
+    local line_no="$1"
+    local exit_code="$2"
+    fail "install.sh failed at line ${line_no} (exit ${exit_code})"
+}
+
+trap 'on_err "$LINENO" "$?"' ERR
+
+eval_brew_shellenv() {
+    local brew_bin
+    brew_bin="$(command -v brew 2>/dev/null || true)"
+    [ -n "$brew_bin" ] && eval "$("$brew_bin" shellenv)"
+}
+
+check_stow_preflight() {
+    local pkg="$1"
+    local output
+
+    if ! output=$(stow -n --simulate -d "$DOTFILES_DIR" -t "$HOME" --restow "$pkg" 2>&1); then
+        warn "Stow preflight failed for package: $pkg"
+        printf "%s\n" "$output" >&2
+        fail "Resolve the stow conflicts above and re-run installer."
+    fi
+}
+
+restow_package() {
+    local pkg="$1"
+    local label="$2"
+
+    check_stow_preflight "$pkg"
+    if stow -d "$DOTFILES_DIR" -t "$HOME" --restow "$pkg"; then
+        ok "$label"
+    else
+        fail "Failed to stow package: $pkg"
+    fi
+}
+
+unstow_package() {
+    local pkg="$1"
+    local label="$2"
+
+    if stow -d "$DOTFILES_DIR" -t "$HOME" -D "$pkg"; then
+        ok "$label"
+    else
+        warn "Failed to unstow package: $pkg"
+    fi
+}
 
 array_contains() {
     local needle="$1"
@@ -45,7 +105,7 @@ is_tool_detected() {
         docker)     command_exists docker ;;
         kubernetes) command_exists kubectl ;;
         vscode)     command_exists code ;;
-        android-sdk) [ -d "$HOME/Library/Android/sdk" ] ;;
+        android-sdk) android_studio_installed || [ -d "$HOME/Library/Android/sdk" ] || [ -d "$HOME/Android/Sdk" ] ;;
         *)          return 1 ;;
     esac
 }
@@ -54,8 +114,12 @@ detect_installed_tools() {
     DETECTED_TOOLS=()
     local tool
     for tool in "${TOOL_IDS[@]}"; do
-        is_tool_detected "$tool" && DETECTED_TOOLS+=("$tool")
+        if is_tool_detected "$tool"; then
+            DETECTED_TOOLS+=("$tool")
+        fi
     done
+
+    return 0
 }
 
 tool_lineup() {
@@ -68,8 +132,8 @@ tool_lineup() {
 
 # ── Tool Registry ───────────────────────────────────────
 TOOL_IDS=(    ghostty            nvm               bun                            deno                               python                          docker                                   kubernetes            vscode                 android-sdk)
-TOOL_NAMES=(  "Ghostty"          "NVM"             "Bun"                          "Deno"                             "Python"                        "Docker"                                 "Kubernetes"          "VS Code"              "Android SDK")
-TOOL_DESCS=(  "GPU-accelerated terminal emulator"  "Node Version Manager"  "JavaScript runtime & bundler"  "Secure JavaScript/TypeScript runtime"  "Python 3 via pyenv version manager"  "Docker Desktop for containers"              "kubectl + kubectx/kubens aliases"  "Visual Studio Code editor"  "Android SDK tools & emulator")
+TOOL_NAMES=(  "Ghostty"          "NVM"             "Bun"                          "Deno"                             "Python"                        "Docker"                                 "Kubernetes"          "VS Code"              "Android Studio")
+TOOL_DESCS=(  "GPU-accelerated terminal emulator"  "Node Version Manager"  "JavaScript runtime & bundler"  "Secure JavaScript/TypeScript runtime"  "Python 3 via pyenv version manager"  "Docker Desktop for containers"              "kubectl + kubectx/kubens aliases"  "Visual Studio Code editor"  "Android Studio (SDK Manager + emulator)")
 
 # ── Interactive Tool Menu ────────────────────────────────
 show_menu() {
@@ -128,8 +192,12 @@ show_menu() {
 
     SELECTED_TOOLS=()
     for ((i = 0; i < num; i++)); do
-        [[ "${selected[$i]}" == true ]] && SELECTED_TOOLS+=("${TOOL_IDS[$i]}")
+        if [[ "${selected[$i]}" == true ]]; then
+            SELECTED_TOOLS+=("${TOOL_IDS[$i]}")
+        fi
     done
+
+    return 0
 }
 
 # ── Tool Installers ──────────────────────────────────────
@@ -157,7 +225,7 @@ install_ghostty() {
         warn "Install Ghostty manually: https://ghostty.org/docs/install/binary"
     fi
     if [ -d "$DOTFILES_DIR/ghostty" ]; then
-        stow -d "$DOTFILES_DIR" -t "$HOME" --restow ghostty && ok "Ghostty config stowed"
+        restow_package "ghostty" "Ghostty config stowed"
     fi
 }
 
@@ -285,19 +353,52 @@ install_vscode() {
 }
 
 install_android_sdk() {
-    if [ -d "$HOME/Library/Android/sdk" ]; then
-        ok "Android SDK already installed"
+    if [[ "$(uname)" != "Darwin" ]]; then
+        warn "Automatic Android Studio install is currently macOS-only in this installer."
+        warn "Install Android Studio manually: https://developer.android.com/studio"
+        warn "Then ensure ANDROID_HOME points to ~/Library/Android/sdk (macOS) or ~/Android/Sdk (Linux)."
         return
     fi
-    
-    if command_exists brew; then
-        info "Installing Android SDK via Homebrew..."
-        brew install android-sdk
-        ok "Android SDK installed"
-    else
-        warn "Install Android SDK manually: https://developer.android.com/studio/command-line-tools"
-        warn "Then set ANDROID_HOME=\$HOME/Library/Android/sdk (already configured in shell tools)"
+
+    if android_studio_installed; then
+        ok "Android Studio already installed"
+        warn "If platform-tools are missing, open Android Studio > SDK Manager and install 'Android SDK Platform-Tools'."
+        return
     fi
+
+    if command_exists brew; then
+        info "Installing Android Studio via Homebrew..."
+        if brew install --cask android-studio; then
+            ok "Android Studio installed"
+            warn "Use Android Studio > SDK Manager to install or update platform-tools as needed."
+            return
+        fi
+
+        warn "Android Studio install via Homebrew failed."
+        warn "Install Android Studio manually: https://developer.android.com/studio"
+        warn "Then open SDK Manager to install platform-tools if needed."
+    else
+        warn "Install Android Studio manually: https://developer.android.com/studio"
+        warn "Then ensure ANDROID_HOME points to ~/Library/Android/sdk (macOS) or ~/Android/Sdk (Linux)."
+    fi
+}
+
+install_tool() {
+    local tool="$1"
+    case "$tool" in
+        ghostty)    install_ghostty ;;
+        nvm)        install_nvm ;;
+        bun)        install_bun ;;
+        deno)       install_deno ;;
+        python)     install_python ;;
+        docker)     install_docker ;;
+        kubernetes) install_kubernetes ;;
+        vscode)     install_vscode ;;
+        android-sdk) install_android_sdk ;;
+        *)          warn "No install handler for tool: $tool" ;;
+    esac
+
+    return 0
 }
 
 # ── Tool Uninstallers ───────────────────────────────────
@@ -333,7 +434,7 @@ uninstall_ghostty() {
     fi
 
     if [ -d "$DOTFILES_DIR/ghostty" ]; then
-        stow -d "$DOTFILES_DIR" -t "$HOME" -D ghostty && ok "Ghostty config unstowed"
+        unstow_package "ghostty" "Ghostty config unstowed"
     fi
 }
 
@@ -435,12 +536,36 @@ uninstall_vscode() {
 }
 
 uninstall_android_sdk() {
-    if command_exists brew && brew list --cask android-sdk >/dev/null 2>&1; then
-        info "Uninstalling Android SDK via Homebrew..."
-        if [[ "$1" == true ]]; then
-            brew uninstall --cask --zap android-sdk || warn "Android SDK uninstall encountered an issue"
-        else
-            brew uninstall --cask android-sdk || warn "Android SDK uninstall encountered an issue"
+    if command_exists brew; then
+        if brew list --cask android-studio >/dev/null 2>&1; then
+            info "Uninstalling Android Studio via Homebrew..."
+            if [[ "$1" == true ]]; then
+                brew uninstall --cask --zap android-studio || warn "Android Studio uninstall encountered an issue"
+            else
+                brew uninstall --cask android-studio || warn "Android Studio uninstall encountered an issue"
+            fi
+        fi
+
+        # Legacy cleanup for earlier installer behavior.
+        if brew list --formula android-sdk >/dev/null 2>&1; then
+            info "Uninstalling legacy Android SDK formula via Homebrew..."
+            brew uninstall android-sdk || warn "Android SDK uninstall encountered an issue"
+        elif brew list --cask android-sdk >/dev/null 2>&1; then
+            info "Uninstalling legacy Android SDK cask via Homebrew..."
+            if [[ "$1" == true ]]; then
+                brew uninstall --cask --zap android-sdk || warn "Android SDK uninstall encountered an issue"
+            else
+                brew uninstall --cask android-sdk || warn "Android SDK uninstall encountered an issue"
+            fi
+        fi
+
+        if brew list --cask android-commandlinetools >/dev/null 2>&1; then
+            info "Uninstalling legacy Android command-line tools cask via Homebrew..."
+            if [[ "$1" == true ]]; then
+                brew uninstall --cask --zap android-commandlinetools || warn "Android command-line tools uninstall encountered an issue"
+            else
+                brew uninstall --cask android-commandlinetools || warn "Android command-line tools uninstall encountered an issue"
+            fi
         fi
     fi
 
@@ -448,6 +573,12 @@ uninstall_android_sdk() {
         info "Removing ~/Library/Android/sdk..."
         rm -rf "$HOME/Library/Android/sdk"
         ok "Removed ~/Library/Android/sdk"
+    fi
+
+    if [ -d "$HOME/Android/Sdk" ]; then
+        info "Removing ~/Android/Sdk..."
+        rm -rf "$HOME/Android/Sdk"
+        ok "Removed ~/Android/Sdk"
     fi
 }
 
@@ -464,7 +595,11 @@ uninstall_tool() {
         kubernetes) uninstall_kubernetes "$purge" ;;
         vscode)     uninstall_vscode "$purge" ;;
         android-sdk) uninstall_android_sdk "$purge" ;;
+        *)          warn "No uninstall handler for tool: $tool" ;;
     esac
+
+    # Uninstall helpers may legitimately find nothing to remove; don't fail installer.
+    return 0
 }
 
 handle_deselected_tools() {
@@ -512,7 +647,7 @@ stow_packages() {
     info "Stowing dotfiles..."
     for pkg in "${PACKAGES[@]}"; do
         if [ -d "$DOTFILES_DIR/$pkg" ]; then
-            stow -d "$DOTFILES_DIR" -t "$HOME" --restow "$pkg" && ok "  $pkg"
+            restow_package "$pkg" "  $pkg"
         fi
     done
 }
@@ -533,7 +668,7 @@ inject_shell_config() {
     if [ ! -f "$rc_file" ]; then
         echo "$source_line" > "$rc_file"
         ok "Created $rc_file"
-    elif ! grep -qF "$SOURCE_TAG" "$rc_file"; then
+    elif ! grep -qF "$SOURCE_TAG" "$rc_file" && ! grep -qF "$LEGACY_SOURCE_TAG" "$rc_file"; then
         printf "\n%s\n" "$source_line" >> "$rc_file"
         ok "Appended source line to $rc_file"
     else
@@ -586,7 +721,7 @@ main() {
     if [[ "$(uname)" == "Darwin" ]] && ! command_exists brew; then
         info "Installing Homebrew..."
         bash <(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)
-        eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || /usr/local/bin/brew shellenv 2>/dev/null)"
+        eval_brew_shellenv
         ok "Homebrew installed"
     fi
 
@@ -626,7 +761,7 @@ main() {
             info "Installing selected tools..."
             echo ""
             for tool in "${SELECTED_TOOLS[@]}"; do
-                "install_$tool"
+                install_tool "$tool"
             done
         else
             info "No tools selected — skipping installation."
