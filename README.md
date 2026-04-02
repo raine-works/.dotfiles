@@ -17,6 +17,7 @@ My personal, opinionated development environment — managed with [GNU Stow](htt
 │       ├── shelldefs           # Core env vars and general aliases
 │       ├── tools/              # Modular tool configs (auto-sourced)
 │       │   ├── bun.sh
+│       │   ├── deno.sh
 │       │   ├── docker.sh
 │       │   ├── kubernetes.sh
 │       │   ├── nvm.sh
@@ -46,7 +47,7 @@ The setup script will:
 5. Ensure **GNU Stow** is available (defensive check; installs via Homebrew if needed)
 6. Stow the core packages (`shell`, `starship`, `gitconfig`) into `$HOME`
 7. Inject a single `source` line into your existing `~/.zshrc` or `~/.bashrc` (your current config is never overwritten)
-8. Launch an **interactive tool picker** — choose which dev tools to install and configure (Ghostty, NVM, Bun, Deno, Python, Docker, Kubernetes, VS Code, Android Studio)
+8. Launch an **interactive tool picker** — choose which dev tools to install and configure (Ghostty, NVM, Bun, Deno, Python, Docker, Kubernetes, VS Code)
 9. Prompt you to create a local `~/.gitconfig.local` for your Git identity
 
 ## Manual Installation
@@ -88,9 +89,7 @@ curl -sS https://starship.rs/install.sh | sh
 
     The menu uses arrow keys to navigate, spacebar to toggle, and enter to confirm. Tools already detected on your system are pre-selected:
 
-    ```
-
-    If you deselect a tool that is currently installed, the installer now offers to remove it (and its managed data/config where applicable). It also asks whether to run a deeper package-manager purge when supported.
+        ```
      ❯ [ ] Ghostty          GPU-accelerated terminal emulator
        [✔] NVM              Node Version Manager
        [✔] Bun              JavaScript runtime & bundler
@@ -102,9 +101,21 @@ curl -sS https://starship.rs/install.sh | sh
        ↑/↓ navigate · space toggle · enter confirm
     ```
 
+        If you deselect a tool that is currently installed, the installer offers to remove it (and its managed data/config where applicable). It also asks whether to run a deeper package-manager purge when supported.
+
     **Flags:**
     - `./install.sh --all` — select every tool without the menu
     - `./install.sh --no-tools` — skip tool selection entirely (stow + shell config only)
+
+    **Current installer tools (source of truth: `install.sh` TOOL_REGISTRY):**
+    - [ ] Ghostty — GPU-accelerated terminal emulator
+    - [ ] NVM — Node Version Manager
+    - [ ] Bun — JavaScript runtime & bundler
+    - [ ] Deno — Secure JavaScript/TypeScript runtime
+    - [ ] Python — Python 3 via pyenv version manager
+    - [ ] Docker — Docker Desktop for containers
+    - [ ] Kubernetes — kubectl + kubectx/kubens aliases
+    - [ ] VS Code — Visual Studio Code editor
 
     Or stow individual packages manually if you only want parts of the config:
 
@@ -152,8 +163,9 @@ The `HOST_IP` variable is auto-detected from your active network interface.
 |---|---|
 | `tools/nvm.sh` | NVM initialization and PATH setup |
 | `tools/bun.sh` | Bun runtime PATH and shell completions |
+| `tools/deno.sh` | Deno install path export (`$DENO_INSTALL`) and PATH setup |
 | `tools/docker.sh` | `d`, `dps`, `dstop` (stop all containers), `dc`, `dcu`, `dcd` |
-| `tools/kubernetes.sh` | `k`, `ka`, `ke`, `kg`, `kd`, `kgpo`, `kgd`, `kgs`, `kc`/`kns`, `kl`, `klp`/`klns` (fzf pod log selector), `kdelp` (fzf pod deletion) |
+| `tools/kubernetes.sh` | `k`, `ka`, `ke`, `kg`, `kd`, `kgpo`, `kgd`, `kgs`, `kgpow`, `kc`/`kns`, `kl`, `klp`/`klns` (fzf pod log selector), `kdel`, `kdelp` (fzf pod deletion) |
 | `tools/python.sh` | pyenv initialization and PATH setup |
 
 ### Ghostty — `ghostty/`

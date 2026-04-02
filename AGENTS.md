@@ -37,7 +37,6 @@ Each top-level directory is a **Stow package**. The directory tree inside each p
 │       ├── zshrc           ← zsh-specific config (completions, prompt)
 │       ├── bashrc          ← bash-specific config
 │       └── tools/          ← modular per-tool configs, self-guarding
-│           ├── android-sdk.sh
 │           ├── bun.sh
 │           ├── deno.sh
 │           ├── docker.sh
@@ -195,8 +194,6 @@ bash ~/.dotfiles/install.sh --no-tools
 - **`HOST_IP` cross-platform fallback** implemented in `shell/.config/shell/shelldefs`.
 - **NVM double-sourcing** fixed in `shell/.config/shell/tools/nvm.sh` by choosing one valid source path.
 - **Starship `success_symbol`** already corrected in `starship/.config/starship/starship.toml`.
-- **`ANDROID_HOME` macOS-only path** fixed in `shell/.config/shell/tools/android-sdk.sh` with OS-based branching.
-- **Android tool install target** updated in `install.sh` to Android Studio-first behavior, with SDK path compatibility retained.
 - **`git pull --quiet` silent failures** fixed in `setup.sh` by removing quiet mode and adding explicit failure handling.
 - **Unique source marker** implemented in `install.sh` (`# dotfiles-managed:raine-works`) with legacy marker compatibility.
 - **Stow failure diagnostics** improved in `install.sh` with preflight checks and explicit error messaging.

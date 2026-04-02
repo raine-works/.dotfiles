@@ -14,84 +14,6 @@ warn()  { printf "\033[1;33m[warn]\033[0m  %s\n" "$1"; }
 fail()  { printf "\033[1;31m[error]\033[0m %s\n" "$1" >&2; exit 1; }
 command_exists() { command -v "$1" >/dev/null 2>&1; }
 
-android_studio_installed() {
-    [ -d "/Applications/Android Studio.app" ] && return 0
-    [ -d "$HOME/Applications/Android Studio.app" ] && return 0
-
-    if command_exists brew; then
-        brew list --cask android-studio >/dev/null 2>&1 && return 0
-    fi
-
-    return 1
-}
-
-detect_android_sdk_dir() {
-    [ -n "$ANDROID_HOME" ] && [ -d "$ANDROID_HOME" ] && { echo "$ANDROID_HOME"; return 0; }
-    [ -n "$ANDROID_SDK_ROOT" ] && [ -d "$ANDROID_SDK_ROOT" ] && { echo "$ANDROID_SDK_ROOT"; return 0; }
-    [ -d "$HOME/Library/Android/Sdk" ] && { echo "$HOME/Library/Android/Sdk"; return 0; }
-    [ -d "$HOME/Library/Android/sdk" ] && { echo "$HOME/Library/Android/sdk"; return 0; }
-    [ -d "$HOME/Android/Sdk" ] && { echo "$HOME/Android/Sdk"; return 0; }
-    return 1
-}
-
-install_android_platform_tools() {
-    local sdk_dir=""
-    local sdkmanager_cmd=""
-    local brew_prefix=""
-
-    sdk_dir="$(detect_android_sdk_dir || true)"
-    if [ -z "$sdk_dir" ]; then
-        sdk_dir="$HOME/Library/Android/Sdk"
-        info "Android SDK path not found; bootstrapping default SDK root at $sdk_dir"
-        mkdir -p "$sdk_dir"
-    fi
-
-    export ANDROID_HOME="$sdk_dir"
-    export ANDROID_SDK_ROOT="$sdk_dir"
-
-    if command_exists sdkmanager; then
-        sdkmanager_cmd="$(command -v sdkmanager)"
-    elif [ -x "$sdk_dir/cmdline-tools/latest/bin/sdkmanager" ]; then
-        sdkmanager_cmd="$sdk_dir/cmdline-tools/latest/bin/sdkmanager"
-    elif [ -x "$sdk_dir/tools/bin/sdkmanager" ]; then
-        sdkmanager_cmd="$sdk_dir/tools/bin/sdkmanager"
-    elif command_exists brew; then
-        brew_prefix="$(brew --prefix 2>/dev/null || true)"
-        if [ -n "$brew_prefix" ] && [ -x "$brew_prefix/share/android-commandlinetools/cmdline-tools/bin/sdkmanager" ]; then
-            sdkmanager_cmd="$brew_prefix/share/android-commandlinetools/cmdline-tools/bin/sdkmanager"
-        fi
-    fi
-
-    if [ -z "$sdkmanager_cmd" ]; then
-        if command_exists brew; then
-            info "Installing Android command-line tools via Homebrew..."
-            brew install --cask android-commandlinetools || true
-
-            brew_prefix="$(brew --prefix 2>/dev/null || true)"
-            if [ -n "$brew_prefix" ] && [ -x "$brew_prefix/share/android-commandlinetools/cmdline-tools/bin/sdkmanager" ]; then
-                sdkmanager_cmd="$brew_prefix/share/android-commandlinetools/cmdline-tools/bin/sdkmanager"
-            fi
-        fi
-    fi
-
-    if [ -z "$sdkmanager_cmd" ]; then
-        warn "sdkmanager not found; cannot automate platform-tools yet."
-        warn "Install 'Android SDK Command-line Tools (latest)' in Android Studio > SDK Manager, then re-run installer."
-        return 1
-    fi
-
-    info "Installing Android SDK Platform-Tools via sdkmanager..."
-    yes | "$sdkmanager_cmd" --sdk_root="$sdk_dir" --licenses >/dev/null 2>&1 || true
-    if "$sdkmanager_cmd" --sdk_root="$sdk_dir" --install "platform-tools"; then
-        ok "Android SDK Platform-Tools installed/updated"
-        return 0
-    fi
-
-    warn "Automatic platform-tools install failed."
-    warn "Install manually via Android Studio > SDK Manager and re-run installer."
-    return 1
-}
-
 on_err() {
     local line_no="$1"
     local exit_code="$2"
@@ -238,7 +160,6 @@ is_tool_detected() {
         docker)     command_exists docker ;;
         kubernetes) command_exists kubectl ;;
         vscode)     command_exists code ;;
-        android-sdk) android_studio_installed || [ -d "$HOME/Library/Android/Sdk" ] || [ -d "$HOME/Library/Android/sdk" ] || [ -d "$HOME/Android/Sdk" ] ;;
         *)          return 1 ;;
     esac
 }
@@ -275,7 +196,6 @@ TOOL_REGISTRY=(
     "docker|Docker|Docker Desktop for containers"
     "kubernetes|Kubernetes|kubectl + kubectx/kubens aliases"
     "vscode|VS Code|Visual Studio Code editor"
-    "android-sdk|Android Studio|Android Studio (SDK Manager + emulator)"
 )
 
 TOOL_IDS=() TOOL_NAMES=() TOOL_DESCS=()
@@ -634,37 +554,6 @@ install_vscode() {
     fi
 }
 
-install_android_sdk() {
-    if [[ "$(uname)" != "Darwin" ]]; then
-        warn "Automatic Android Studio install is currently macOS-only in this installer."
-        warn "Install Android Studio manually: https://developer.android.com/studio"
-        warn "Then ensure ANDROID_HOME points to ~/Library/Android/Sdk (or ~/Library/Android/sdk) on macOS, or ~/Android/Sdk on Linux."
-        return
-    fi
-
-    if android_studio_installed; then
-        ok "Android Studio already installed"
-        install_android_platform_tools || true
-        return
-    fi
-
-    if command_exists brew; then
-        info "Installing Android Studio via Homebrew..."
-        if brew install --cask android-studio; then
-            ok "Android Studio installed"
-            install_android_platform_tools || true
-            return
-        fi
-
-        warn "Android Studio install via Homebrew failed."
-        warn "Install Android Studio manually: https://developer.android.com/studio"
-        warn "Then open SDK Manager to install platform-tools if needed."
-    else
-        warn "Install Android Studio manually: https://developer.android.com/studio"
-        warn "Then ensure ANDROID_HOME points to ~/Library/Android/Sdk (or ~/Library/Android/sdk) on macOS, or ~/Android/Sdk on Linux."
-    fi
-}
-
 verify_tool_installed() {
     local tool="$1"
     local cmd
@@ -677,7 +566,6 @@ verify_tool_installed() {
         docker)      cmd="docker" ;;
         kubernetes)  cmd="kubectl" ;;
         vscode)      cmd="code" ;;
-        android-sdk) android_studio_installed && return 0; return 1 ;;
         *)           return 0 ;;
     esac
     command_exists "$cmd" && return 0
@@ -696,7 +584,6 @@ install_tool() {
         docker)     install_docker ;;
         kubernetes) install_kubernetes ;;
         vscode)     install_vscode ;;
-        android-sdk) install_android_sdk ;;
         *)          warn "No install handler for tool: $tool" ;;
     esac
 
@@ -807,24 +694,6 @@ uninstall_vscode() {
     uninstall_via_brew visual-studio-code cask "${1:-false}"
 }
 
-uninstall_android_sdk() {
-    local purge="${1:-false}"
-    uninstall_via_brew android-studio cask "$purge"
-    uninstall_via_brew android-sdk formula
-    uninstall_via_brew android-sdk cask "$purge"
-    uninstall_via_brew android-commandlinetools cask "$purge"
-    if [ -d "$HOME/Library/Android/sdk" ]; then
-        info "Removing ~/Library/Android/sdk..."
-        rm -rf "$HOME/Library/Android/sdk"
-        ok "Removed ~/Library/Android/sdk"
-    fi
-    if [ -d "$HOME/Android/Sdk" ]; then
-        info "Removing ~/Android/Sdk..."
-        rm -rf "$HOME/Android/Sdk"
-        ok "Removed ~/Android/Sdk"
-    fi
-}
-
 uninstall_tool() {
     local tool="$1"
     local purge="$2"
@@ -837,7 +706,6 @@ uninstall_tool() {
         docker)     uninstall_docker "$purge" ;;
         kubernetes) uninstall_kubernetes "$purge" ;;
         vscode)     uninstall_vscode "$purge" ;;
-        android-sdk) uninstall_android_sdk "$purge" ;;
         *)          warn "No uninstall handler for tool: $tool" ;;
     esac
 
