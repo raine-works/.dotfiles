@@ -156,6 +156,8 @@ is_tool_detected() {
         nvm)        [ -d "$HOME/.nvm" ] ;;
         bun)        command_exists bun ;;
         deno)       command_exists deno ;;
+        golang)     command_exists go ;;
+        rust)       command_exists rustc ;;
         python)     command_exists pyenv ;;
         docker)     command_exists docker ;;
         kubernetes) command_exists kubectl ;;
@@ -192,6 +194,8 @@ TOOL_REGISTRY=(
     "nvm|NVM|Node Version Manager"
     "bun|Bun|JavaScript runtime & bundler"
     "deno|Deno|Secure JavaScript/TypeScript runtime"
+    "golang|Go|Go programming language"
+    "rust|Rust|Rust programming language and Cargo"
     "python|Python|Python 3 via pyenv version manager"
     "docker|Docker|Docker Desktop for containers"
     "kubernetes|Kubernetes|kubectl + kubectx/kubens aliases"
@@ -399,6 +403,41 @@ install_deno() {
     ok "Deno installed"
 }
 
+install_golang() {
+    if command_exists go; then
+        ok "Go already installed"
+        return
+    fi
+
+    info "Installing Go..."
+    if install_package "go" "golang-go" "golang" "go"; then
+        ok "Go installed"
+    else
+        warn "Install Go manually: https://go.dev/doc/install"
+    fi
+}
+
+install_rust() {
+    if command_exists rustc; then
+        ok "Rust already installed"
+        return
+    fi
+
+    if ! command_exists curl; then
+        warn "curl is required to install Rust via rustup"
+        warn "Install Rust manually: https://www.rust-lang.org/tools/install"
+        return
+    fi
+
+    info "Installing Rust via rustup..."
+    if curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y; then
+        [ -s "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
+        ok "Rust installed"
+    else
+        warn "Install Rust manually: https://www.rust-lang.org/tools/install"
+    fi
+}
+
 install_python() {
     if command_exists pyenv; then
         ok "pyenv already installed"
@@ -562,6 +601,8 @@ verify_tool_installed() {
         nvm)         [ -d "$HOME/.nvm" ] && return 0; return 1 ;;
         bun)         cmd="bun" ;;
         deno)        cmd="deno" ;;
+        golang)      cmd="go" ;;
+        rust)        cmd="rustc" ;;
         python)      cmd="pyenv" ;;
         docker)      cmd="docker" ;;
         kubernetes)  cmd="kubectl" ;;
@@ -580,6 +621,8 @@ install_tool() {
         nvm)        install_nvm ;;
         bun)        install_bun ;;
         deno)       install_deno ;;
+        golang)     install_golang ;;
+        rust)       install_rust ;;
         python)     install_python ;;
         docker)     install_docker ;;
         kubernetes) install_kubernetes ;;
@@ -664,6 +707,32 @@ uninstall_deno() {
     fi
 }
 
+uninstall_golang() {
+    uninstall_via_brew go formula
+    if command_exists apt-get && dpkg -s golang-go >/dev/null 2>&1; then
+        info "Uninstalling Go via apt..."
+        sudo apt-get remove -y golang-go || warn "Go uninstall encountered an issue"
+    elif command_exists dnf && rpm -q golang >/dev/null 2>&1; then
+        info "Uninstalling Go via DNF..."
+        sudo dnf remove -y golang || warn "Go uninstall encountered an issue"
+    elif command_exists pacman && pacman -Q go >/dev/null 2>&1; then
+        info "Uninstalling Go via pacman..."
+        sudo pacman -R --noconfirm go || warn "Go uninstall encountered an issue"
+    fi
+}
+
+uninstall_rust() {
+    if command_exists rustup; then
+        info "Uninstalling Rust via rustup..."
+        rustup self uninstall -y || warn "rustup uninstall encountered an issue"
+    fi
+    if [ -d "$HOME/.rustup" ] || [ -d "$HOME/.cargo" ]; then
+        info "Removing Rust toolchain directories..."
+        rm -rf "$HOME/.rustup" "$HOME/.cargo"
+        ok "Removed ~/.rustup and ~/.cargo"
+    fi
+}
+
 uninstall_python() {
     uninstall_via_brew pyenv formula
     if command_exists apt-get && dpkg -s pyenv >/dev/null 2>&1; then
@@ -702,6 +771,8 @@ uninstall_tool() {
         nvm)        uninstall_nvm "$purge" ;;
         bun)        uninstall_bun "$purge" ;;
         deno)       uninstall_deno "$purge" ;;
+        golang)     uninstall_golang "$purge" ;;
+        rust)       uninstall_rust "$purge" ;;
         python)     uninstall_python "$purge" ;;
         docker)     uninstall_docker "$purge" ;;
         kubernetes) uninstall_kubernetes "$purge" ;;

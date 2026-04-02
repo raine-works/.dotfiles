@@ -19,9 +19,11 @@ My personal, opinionated development environment — managed with [GNU Stow](htt
 │       │   ├── bun.sh
 │       │   ├── deno.sh
 │       │   ├── docker.sh
+│       │   ├── golang.sh
 │       │   ├── kubernetes.sh
 │       │   ├── nvm.sh
-│       │   └── python.sh
+│       │   ├── python.sh
+│       │   └── rust.sh
 │       ├── zshrc               # Zsh-specific config
 │       └── bashrc              # Bash-specific config
 ├── starship/                  # Starship cross-shell prompt theme
@@ -47,7 +49,7 @@ The setup script will:
 5. Ensure **GNU Stow** is available (defensive check; installs via Homebrew if needed)
 6. Stow the core packages (`shell`, `starship`, `gitconfig`) into `$HOME`
 7. Inject a single `source` line into your existing `~/.zshrc` or `~/.bashrc` (your current config is never overwritten)
-8. Launch an **interactive tool picker** — choose which dev tools to install and configure (Ghostty, NVM, Bun, Deno, Python, Docker, Kubernetes, VS Code)
+8. Launch an **interactive tool picker** — choose which dev tools to install and configure (Ghostty, NVM, Bun, Deno, Go, Rust, Python, Docker, Kubernetes, VS Code)
 9. Prompt you to create a local `~/.gitconfig.local` for your Git identity
 
 ## Manual Installation
@@ -94,6 +96,8 @@ curl -sS https://starship.rs/install.sh | sh
        [✔] NVM              Node Version Manager
        [✔] Bun              JavaScript runtime & bundler
        [ ] Deno             Secure JavaScript/TypeScript runtime
+         [ ] Go               Go programming language
+         [ ] Rust             Rust programming language and Cargo
        [ ] Python           Python 3 via pyenv version manager
        [ ] Docker           Docker Desktop for containers
        [ ] Kubernetes       kubectl + kubectx/kubens aliases
@@ -112,6 +116,8 @@ curl -sS https://starship.rs/install.sh | sh
     - [ ] NVM — Node Version Manager
     - [ ] Bun — JavaScript runtime & bundler
     - [ ] Deno — Secure JavaScript/TypeScript runtime
+    - [ ] Go — Go programming language
+    - [ ] Rust — Rust programming language and Cargo
     - [ ] Python — Python 3 via pyenv version manager
     - [ ] Docker — Docker Desktop for containers
     - [ ] Kubernetes — kubectl + kubectx/kubens aliases
@@ -165,8 +171,10 @@ The `HOST_IP` variable is auto-detected from your active network interface.
 | `tools/bun.sh` | Bun runtime PATH and shell completions |
 | `tools/deno.sh` | Deno install path export (`$DENO_INSTALL`) and PATH setup |
 | `tools/docker.sh` | `d`, `dps`, `dstop` (stop all containers), `dc`, `dcu`, `dcd` |
+| `tools/golang.sh` | GOPATH defaulting (`$HOME/go` when unset) and `GOPATH/bin` PATH setup |
 | `tools/kubernetes.sh` | `k`, `ka`, `ke`, `kg`, `kd`, `kgpo`, `kgd`, `kgs`, `kgpow`, `kc`/`kns`, `kl`, `klp`/`klns` (fzf pod log selector), `kdel`, `kdelp` (fzf pod deletion) |
 | `tools/python.sh` | pyenv initialization and PATH setup |
+| `tools/rust.sh` | Sources `~/.cargo/env` when present |
 
 ### Ghostty — `ghostty/`
 
