@@ -1,11 +1,11 @@
-theme = Catppuccin Frappe
+theme = ToKyoNight
 font-size = 19
+font-family = JetBrainsMono Nerd Font
 mouse-hide-while-typing = true
 window-decoration = true
 window-padding-x = 18
 window-padding-y = 2
 window-padding-balance = true
-# macOS-specific key behavior; ignored on non-macOS platforms.
 macos-option-as-alt = true
-background-opacity = 0.7
-background-blur-radius = 20
+background-opacity = 0.8
+background-blur-radius = 50

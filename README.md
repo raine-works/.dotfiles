@@ -4,7 +4,7 @@
 
 My personal, opinionated development environment — managed with [GNU Stow](https://www.gnu.org/software/stow/) and designed to get a new machine feeling like home in a single command.
 
-> **Fair warning:** These dotfiles reflect *my* workflow and preferences. They ship with specific tool choices (Ghostty, Starship, fzf), a Catppuccin Frappe color scheme everywhere, rebase-oriented Git defaults, and an alias vocabulary that makes sense to me. Feel free to fork and bend them to your own taste, but don't expect a neutral starting point — this is a setup that works for one person and is shared in the spirit of "steal what's useful."
+> **Fair warning:** These dotfiles reflect *my* workflow and preferences. They ship with specific tool choices (Ghostty, Starship, fzf), a Tokyo Night Storm Starship/VS Code theme direction, rebase-oriented Git defaults, and an alias vocabulary that makes sense to me. Feel free to fork and bend them to your own taste, but don't expect a neutral starting point — this is a setup that works for one person and is shared in the spirit of "steal what's useful."
 
 ## Overview
 
@@ -27,11 +27,12 @@ My personal, opinionated development environment — managed with [GNU Stow](htt
 │       ├── zshrc               # Zsh-specific config
 │       └── bashrc              # Bash-specific config
 ├── starship/                  # Starship cross-shell prompt theme
+├── vscode/                    # VS Code base settings (merged into local user settings)
 ├── install.sh                 # Interactive installer with tool selection
 └── setup.sh                   # One-liner: clone, install deps, hand off to install.sh
 ```
 
-Each top-level directory is a **Stow package** — running `stow <package>` symlinks its contents into the corresponding location under `$HOME`. No files are copied or overwritten; everything stays version-controlled in this repo.
+Each top-level directory is a **Stow package** — running `stow <package>` symlinks its contents into the corresponding location under `$HOME`. Most files are symlinked only; the VS Code installer intentionally merges a tracked base config into your local `settings.json` so local edits stay out of this repo.
 
 ## Quick Start
 
@@ -43,7 +44,7 @@ curl -fsSL https://raw.githubusercontent.com/raine-works/.dotfiles/master/setup.
 
 The setup script will:
 1. On macOS, auto-install **Homebrew** first if it's missing
-2. Install base dependencies — **Git**, **GNU Stow**, **Starship**, and **fzf** — via Homebrew (macOS) or apt/dnf/pacman (Linux)
+2. Install base dependencies — **Git**, **GNU Stow**, **Starship**, and **fzf** — via Homebrew
 3. Clone this repo to `~/.dotfiles` (or pull latest if it already exists)
 4. Hand off to the interactive installer (`install.sh`), which will:
 5. Ensure **GNU Stow** is available (defensive check; installs via Homebrew if needed)
@@ -66,10 +67,6 @@ The setup script will:
 ```bash
 # macOS
 brew install stow starship fzf
-
-# Debian / Ubuntu
-sudo apt install stow fzf
-curl -sS https://starship.rs/install.sh | sh
 ```
 
 ### Steps
@@ -129,6 +126,7 @@ curl -sS https://starship.rs/install.sh | sh
     stow shell        # aliases, exports, PATH, shell rc files
     stow starship     # prompt theme
     stow gitconfig    # git settings + aliases
+    stow vscode       # VS Code base settings (Tokyo Night Storm defaults)
     ```
 
     Ghostty config is stowed automatically when selected in the tool picker.
@@ -180,9 +178,9 @@ The `HOST_IP` variable is auto-detected from your active network interface.
 
 Symlinks to `~/.config/ghostty/config`.
 
-- **Theme:** Catppuccin Frappe
 - **Font size:** 19px
-- **Background opacity:** 0.7 with a 20px blur radius
+- **Font family:** JetBrainsMono Nerd Font
+- **Background opacity:** 0.8 with a 50px blur radius
 - **macOS option key** mapped as Alt (not Meta) for proper keybinds
 - Mouse cursor hides while typing
 
@@ -208,10 +206,19 @@ Key opinions baked in:
 
 Symlinks to `~/.config/starship/starship.toml`.
 
-- **Theme:** Catppuccin Frappe palette (matches Ghostty)
+- **Theme:** Tokyo Night Storm palette
 - **Left prompt:** directory → git branch → input character
 - **Right prompt:** Kubernetes context → Docker context → command duration → time
 - **Prompt character:** green `❯` in insert mode, `[N] >>>` in vi normal mode
+
+### VS Code — `vscode/`
+
+Symlinks a base file at `~/Library/Application Support/Code/User/dotfiles.settings.json` on macOS.
+
+When VS Code is selected in `install.sh`, the installer merges this base file into your local `settings.json` with local values taking precedence. That means editing settings from inside VS Code updates your local file, not this repo.
+
+- **Theme:** `Tokyo Night Storm`
+- **Extension:** `enkia.tokyo-night` (installed automatically when VS Code is selected in the installer)
 
 ## Uninstalling
 
@@ -223,6 +230,7 @@ stow -D shell
 stow -D ghostty
 stow -D starship
 stow -D gitconfig
+stow -D vscode
 ```
 
 This deletes only the symlinks — your original files are untouched. You may also want to remove the `# dotfiles-managed` source line from your `~/.zshrc` or `~/.bashrc`.

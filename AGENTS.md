@@ -12,10 +12,10 @@ A personal development environment managed with **GNU Stow**. Designed to provis
 curl -fsSL https://raw.githubusercontent.com/raine-works/.dotfiles/main/setup.sh | bash
 ```
 
-- **Primary platform:** macOS (partial Linux support)
-- **Theme:** Catppuccin Frappe applied consistently across Ghostty and Starship
-- **Package manager:** Homebrew (macOS); apt fallback on Linux
-- **Config strategy:** symlinks via `stow`; nothing is copied or overwritten
+- **Primary platform:** macOS
+- **Theme:** Catppuccin Frappe in Starship prompt configuration
+- **Package manager:** Homebrew
+- **Config strategy:** mostly symlinks via `stow`; VS Code settings use a stowed base file merged into local settings
 
 ---
 
@@ -97,7 +97,7 @@ Always follow this pattern when adding a new tool file.
 
 ### `setup.sh` (bootstrap)
 1. Detects OS; installs Homebrew on macOS if missing
-2. Installs base deps: `stow`, `git`, `starship`, `fzf` via Homebrew (macOS) or apt/dnf/pacman (Linux)
+2. Installs base deps: `stow`, `git`, `starship`, `fzf` via Homebrew
 3. Clones the repo to `~/.dotfiles`, or pulls latest if it already exists
 4. Execs into `install.sh`
 
@@ -107,6 +107,16 @@ Always follow this pattern when adding a new tool file.
 3. Injects `[ -f ~/.config/shell/{zshrc|bashrc} ] && source ... # dotfiles-managed:raine-works` into user's existing rc file
 4. Runs selected tool installers
 5. Prompts to create `~/.gitconfig.local` with name/email
+
+### VS Code settings behavior
+
+The `vscode` package stows `dotfiles.settings.json` into `~/Library/Application Support/Code/User/`.
+
+`install_vscode()` then merges:
+- base: `dotfiles.settings.json` (tracked in this repo)
+- local: `settings.json` (user-edited, not tracked)
+
+Local values win on merge, so in-editor settings changes do not mutate this repository.
 
 **Flags:**
 | Flag | Effect |
@@ -206,6 +216,4 @@ bash ~/.dotfiles/install.sh --no-tools
 - **No pre-flight backup before `stow --restow`** resolved: `backup_stow_conflicts()` now creates a dated tarball of conflicting targets in `~/.dotfiles-backups/` (retains last 5), and `restore_stow_backup()` offers interactive restore on stow failure. `install.sh`.
 - **Tool metadata duplication** eliminated: `TOOL_REGISTRY` single-source array replaced three parallel arrays; `TOOL_IDS`/`TOOL_NAMES`/`TOOL_DESCS` are derived automatically. `install.sh`.
 - **Repetitive uninstaller boilerplate** consolidated: `uninstall_via_brew()` helper extracts brew-formula/cask uninstall logic; each uninstaller reduced to a thin wrapper. `install.sh`.
-- **Linux installer coverage gaps** resolved: Docker, Kubernetes, VS Code, Bun, Deno, Python installers now support apt/dnf/pacman in addition to Homebrew. New `install_package()` and `detect_package_manager()` helpers. `install.sh`.
 - **Post-install PATH verification** added: `verify_tool_installed()` warns (non-blocking) when a tool's command is missing from PATH after install. `install.sh`.
-- **Linux base-dep bootstrap** improved in `setup.sh`: `install_base_deps()` now installs stow/git/starship/fzf via apt/dnf/pacman on Linux with per-package granularity rather than silent `|| true`.

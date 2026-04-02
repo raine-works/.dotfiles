@@ -17,6 +17,198 @@ fail() {
 }
 command_exists() { command -v "$1" >/dev/null 2>&1; }
 
+vscode_cli_path() {
+    local code_bin
+    code_bin="$(command -v code 2>/dev/null || true)"
+    if [ -n "$code_bin" ]; then
+        echo "$code_bin"
+        return 0
+    fi
+
+    local macos_code_bin="/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"
+    if [ -x "$macos_code_bin" ]; then
+        echo "$macos_code_bin"
+        return 0
+    fi
+
+    return 1
+}
+
+vscode_user_settings_dir() {
+    echo "$HOME/Library/Application Support/Code/User"
+}
+
+vscode_merge_settings() {
+    local settings_dir settings_file base_file
+    settings_dir="$(vscode_user_settings_dir)"
+    settings_file="$settings_dir/settings.json"
+    base_file="$settings_dir/dotfiles.settings.json"
+
+    mkdir -p "$settings_dir"
+
+    # Migrate older setups where settings.json was symlinked into the dotfiles repo.
+    if [ -L "$settings_file" ]; then
+        rm -f "$settings_file"
+    fi
+
+    if [ ! -f "$base_file" ]; then
+        warn "VS Code base settings not found at $base_file; skipping settings merge"
+        return 0
+    fi
+
+    if command_exists python3; then
+        local merge_error
+        if merge_error="$(python3 - "$base_file" "$settings_file" 2>&1 <<'PY'
+import json
+import os
+import sys
+
+base_path, settings_path = sys.argv[1], sys.argv[2]
+
+
+def strip_jsonc(text):
+    out = []
+    i = 0
+    in_string = False
+    escape = False
+    n = len(text)
+
+    while i < n:
+        ch = text[i]
+
+        if in_string:
+            out.append(ch)
+            if escape:
+                escape = False
+            elif ch == '\\':
+                escape = True
+            elif ch == '"':
+                in_string = False
+            i += 1
+            continue
+
+        if ch == '"':
+            in_string = True
+            out.append(ch)
+            i += 1
+            continue
+
+        if ch == '/' and i + 1 < n and text[i + 1] == '/':
+            i += 2
+            while i < n and text[i] not in '\r\n':
+                i += 1
+            continue
+
+        if ch == '/' and i + 1 < n and text[i + 1] == '*':
+            i += 2
+            while i + 1 < n and not (text[i] == '*' and text[i + 1] == '/'):
+                i += 1
+            i = min(i + 2, n)
+            continue
+
+        out.append(ch)
+        i += 1
+
+    return ''.join(out)
+
+
+def remove_trailing_commas(text):
+    out = []
+    i = 0
+    in_string = False
+    escape = False
+    n = len(text)
+
+    while i < n:
+        ch = text[i]
+
+        if in_string:
+            out.append(ch)
+            if escape:
+                escape = False
+            elif ch == '\\':
+                escape = True
+            elif ch == '"':
+                in_string = False
+            i += 1
+            continue
+
+        if ch == '"':
+            in_string = True
+            out.append(ch)
+            i += 1
+            continue
+
+        if ch == ',':
+            j = i + 1
+            while j < n and text[j] in ' \t\r\n':
+                j += 1
+            if j < n and text[j] in '}]':
+                i += 1
+                continue
+
+        out.append(ch)
+        i += 1
+
+    return ''.join(out)
+
+
+def load_json(path, required=False):
+    if not os.path.exists(path):
+        if required:
+            raise FileNotFoundError(path)
+        return {}
+    with open(path, 'r', encoding='utf-8') as f:
+        raw = f.read()
+
+    if not raw.strip():
+        return {}
+
+    cleaned = remove_trailing_commas(strip_jsonc(raw))
+    return json.loads(cleaned)
+
+
+def deep_merge(base, override):
+    if not isinstance(base, dict) or not isinstance(override, dict):
+        return override
+
+    merged = dict(base)
+    for key, value in override.items():
+        if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
+            merged[key] = deep_merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
+base = load_json(base_path, required=True)
+current = load_json(settings_path, required=False)
+
+if not isinstance(base, dict):
+    raise ValueError('Base VS Code settings must be a JSON object')
+if not isinstance(current, dict):
+    raise ValueError('Existing VS Code settings must be a JSON object')
+
+merged = deep_merge(base, current)
+
+with open(settings_path, 'w', encoding='utf-8') as f:
+    json.dump(merged, f, indent=2)
+    f.write('\n')
+PY
+        )"; then
+            ok "VS Code settings merged (dotfiles base + local overrides)"
+        else
+            warn "Failed to merge VS Code settings; leaving existing settings untouched"
+            [ -n "$merge_error" ] && warn "VS Code merge error: $merge_error"
+        fi
+    elif [ ! -f "$settings_file" ]; then
+        cp "$base_file" "$settings_file"
+        ok "Created VS Code settings.json from dotfiles base"
+    else
+        warn "python3 not found; skipped VS Code settings merge"
+    fi
+}
+
 rust_toolchain_detected() {
     command_exists rustc && return 0
     command_exists cargo && return 0
@@ -259,7 +451,7 @@ is_tool_detected() {
         python) command_exists pyenv ;;
         docker) command_exists docker ;;
         kubernetes) command_exists kubectl ;;
-        vscode) command_exists code ;;
+        vscode) vscode_cli_path >/dev/null 2>&1 ;;
         *) return 1 ;;
     esac
 }
@@ -388,60 +580,57 @@ show_menu() {
 }
 
 # ── Tool Installers ──────────────────────────────────────
-# detect_package_manager: echo the first available manager (brew|apt|dnf|pacman)
+# detect_package_manager: echo brew when available
 detect_package_manager() {
     if command_exists brew; then
         echo "brew"
         return
     fi
-    if command_exists apt-get; then
-        echo "apt"
-        return
-    fi
-    if command_exists dnf; then
-        echo "dnf"
-        return
-    fi
-    if command_exists pacman; then
-        echo "pacman"
-        return
-    fi
     echo ""
 }
 
-# install_package BREW_PKG APT_PKG DNF_PKG PACMAN_PKG [--cask]
-# Installs a package from whichever manager is available.
-# Pass empty string "" for a manager that has no package.
+# install_package BREW_PKG [--cask]
+# Installs a package via Homebrew.
 install_package() {
-    local brew_pkg="$1" apt_pkg="$2" dnf_pkg="$3" pacman_pkg="$4"
+    local brew_pkg="$1"
     local is_cask=false
-    [[ "${5:-}" == "--cask" ]] && is_cask=true
-    local pm
-    pm="$(detect_package_manager)"
-    case "$pm" in
-        brew)
-            if $is_cask; then
-                brew install --cask "$brew_pkg"
-            else
-                brew install "$brew_pkg"
-            fi
-            ;;
-        apt)
-            [ -z "$apt_pkg" ] && return 1
-            sudo apt-get update -qq && sudo apt-get install -y -qq "$apt_pkg"
-            ;;
-        dnf)
-            [ -z "$dnf_pkg" ] && return 1
-            sudo dnf install -y "$dnf_pkg"
-            ;;
-        pacman)
-            [ -z "$pacman_pkg" ] && return 1
-            sudo pacman -S --noconfirm "$pacman_pkg"
-            ;;
-        *)
-            return 1
-            ;;
-    esac
+    [[ "${2:-}" == "--cask" ]] && is_cask=true
+
+    command_exists brew || return 1
+    if $is_cask; then
+        brew install --cask "$brew_pkg"
+    else
+        brew install "$brew_pkg"
+    fi
+}
+
+install_jetbrains_mono_nerd_font() {
+    [[ "$(uname)" == "Darwin" ]] || return 0
+
+    if ! command_exists brew; then
+        warn "Skipping JetBrainsMono Nerd Font install because Homebrew is unavailable"
+        return 0
+    fi
+
+    if brew list --cask font-jetbrains-mono-nerd-font >/dev/null 2>&1; then
+        ok "JetBrainsMono Nerd Font already installed"
+        return 0
+    fi
+
+    if ! brew tap | grep -qx "homebrew/cask-fonts"; then
+        info "Adding Homebrew cask-fonts tap..."
+        brew tap homebrew/cask-fonts || {
+            warn "Could not add homebrew/cask-fonts tap; skipping JetBrainsMono Nerd Font install"
+            return 0
+        }
+    fi
+
+    info "Installing JetBrainsMono Nerd Font via Homebrew..."
+    if brew install --cask font-jetbrains-mono-nerd-font; then
+        ok "JetBrainsMono Nerd Font installed"
+    else
+        warn "JetBrainsMono Nerd Font install failed"
+    fi
 }
 
 install_ghostty() {
@@ -450,19 +639,6 @@ install_ghostty() {
     elif command_exists brew; then
         info "Installing Ghostty via Homebrew..."
         brew install --cask ghostty
-        ok "Ghostty installed"
-    elif command_exists pacman; then
-        info "Installing Ghostty via pacman..."
-        sudo pacman -S --noconfirm ghostty
-        ok "Ghostty installed"
-    elif command_exists dnf; then
-        info "Installing Ghostty via DNF (Terra)..."
-        sudo dnf install -y --nogpgcheck --repofrompath 'terra,https://repos.fyralabs.com/terra$releasever' terra-release 2>/dev/null || true
-        sudo dnf install -y ghostty
-        ok "Ghostty installed"
-    elif command_exists snap; then
-        info "Installing Ghostty via Snap..."
-        sudo snap install ghostty --classic
         ok "Ghostty installed"
     else
         warn "Install Ghostty manually: https://ghostty.org/docs/install/binary"
@@ -505,9 +681,6 @@ install_bun() {
     if command_exists brew; then
         info "Installing Bun via Homebrew..."
         brew install oven-sh/bun/bun
-    elif command_exists apt-get || command_exists dnf || command_exists pacman; then
-        info "Installing Bun via install script..."
-        bash <(curl -fsSL https://bun.sh/install)
     else
         info "Installing Bun via install script..."
         bash <(curl -fsSL https://bun.sh/install)
@@ -523,18 +696,9 @@ install_deno() {
     if command_exists brew; then
         info "Installing Deno via Homebrew..."
         brew install deno
-    elif command_exists pacman; then
-        info "Installing Deno via pacman..."
-        sudo pacman -S --noconfirm deno
-    elif command_exists dnf; then
-        info "Installing Deno via install script..."
-        bash <(curl -fsSL https://deno.land/install.sh)
-    elif command_exists apt-get; then
-        info "Installing Deno via install script..."
-        bash <(curl -fsSL https://deno.land/install.sh)
     else
-        warn "Install Deno manually: https://deno.land/#installation"
-        return
+        info "Installing Deno via install script..."
+        bash <(curl -fsSL https://deno.land/install.sh)
     fi
     ok "Deno installed"
 }
@@ -546,7 +710,7 @@ install_golang() {
     fi
 
     info "Installing Go..."
-    if install_package "go" "golang-go" "golang" "go"; then
+    if install_package "go"; then
         ok "Go installed"
     else
         warn "Install Go manually: https://go.dev/doc/install"
@@ -582,15 +746,6 @@ install_python() {
         info "Installing pyenv via Homebrew..."
         brew install pyenv
         ok "pyenv installed"
-    elif command_exists apt-get; then
-        info "Installing pyenv build dependencies..."
-        sudo apt-get update -qq && sudo apt-get install -y -qq \
-            make build-essential libssl-dev zlib1g-dev libbz2-dev \
-            libreadline-dev libsqlite3-dev wget curl llvm libncursesw5-dev \
-            xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
-        info "Installing pyenv via installer..."
-        curl -fsSL https://pyenv.run | bash
-        ok "pyenv installed"
     else
         warn "Install pyenv manually: https://github.com/pyenv/pyenv#installation"
     fi
@@ -617,29 +772,6 @@ install_docker() {
         info "Installing Docker Desktop via Homebrew..."
         brew install --cask docker
         ok "Docker Desktop installed"
-    elif command_exists apt-get; then
-        info "Installing Docker Engine via apt..."
-        sudo apt-get update -qq
-        sudo apt-get install -y -qq ca-certificates curl gnupg lsb-release
-        sudo install -m 0755 -d /etc/apt/keyrings
-        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-        sudo chmod a+r /etc/apt/keyrings/docker.gpg
-        echo "deb [arch=\"$(dpkg --print-architecture)\" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \"$(lsb_release -cs)\" stable" | sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
-        sudo apt-get update -qq
-        sudo apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-        ok "Docker Engine installed"
-    elif command_exists dnf; then
-        info "Installing Docker Engine via DNF..."
-        sudo dnf -y install dnf-plugins-core
-        sudo dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
-        sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-        sudo systemctl enable --now docker
-        ok "Docker Engine installed"
-    elif command_exists pacman; then
-        info "Installing Docker via pacman..."
-        sudo pacman -S --noconfirm docker docker-compose
-        sudo systemctl enable --now docker
-        ok "Docker installed"
     else
         warn "Install Docker manually: https://www.docker.com/products/docker-desktop/"
     fi
@@ -650,29 +782,6 @@ install_kubernetes() {
         if command_exists brew; then
             info "Installing kubectl via Homebrew..."
             brew install kubectl
-            ok "kubectl installed"
-        elif command_exists apt-get; then
-            info "Installing kubectl via apt..."
-            sudo apt-get update -qq && sudo apt-get install -y -qq apt-transport-https gnupg
-            curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-            echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list >/dev/null
-            sudo apt-get update -qq && sudo apt-get install -y -qq kubectl
-            ok "kubectl installed"
-        elif command_exists dnf; then
-            info "Installing kubectl via DNF..."
-            cat <<'EOF' | sudo tee /etc/yum.repos.d/kubernetes.repo >/dev/null
-[kubernetes]
-name=Kubernetes
-baseurl=https://pkgs.k8s.io/core:/stable:/v1.29/rpm/
-enabled=1
-gpgcheck=1
-gpgkey=https://pkgs.k8s.io/core:/stable:/v1.29/rpm/repodata/repomd.xml.key
-EOF
-            sudo dnf install -y kubectl
-            ok "kubectl installed"
-        elif command_exists pacman; then
-            info "Installing kubectl via pacman..."
-            sudo pacman -S --noconfirm kubectl
             ok "kubectl installed"
         else
             warn "Install kubectl manually: https://kubernetes.io/docs/tasks/tools/"
@@ -686,51 +795,39 @@ EOF
             info "Installing kubectx & kubens via Homebrew..."
             brew install kubectx
             ok "kubectx installed"
-        elif command_exists apt-get; then
-            info "Installing kubectx via apt..."
-            sudo apt-get install -y -qq kubectx 2>/dev/null || {
-                warn "kubectx not in apt — install manually: https://github.com/ahmetb/kubectx"
-            }
-        elif command_exists pacman; then
-            info "Installing kubectx via pacman..."
-            sudo pacman -S --noconfirm kubectx 2>/dev/null || {
-                warn "kubectx not in pacman — install manually: https://github.com/ahmetb/kubectx"
-            }
         fi
     fi
 }
 
 install_vscode() {
-    if command_exists code; then
+    local installed_now=false
+    local vscode_cli
+
+    if vscode_cli="$(vscode_cli_path 2>/dev/null)"; then
         ok "VS Code already installed"
-        return
-    fi
-    if command_exists brew; then
+    elif command_exists brew; then
         info "Installing VS Code via Homebrew..."
         brew install --cask visual-studio-code
         ok "VS Code installed"
-    elif command_exists apt-get; then
-        info "Installing VS Code via apt..."
-        sudo apt-get install -y -qq wget gpg
-        wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor >/tmp/packages.microsoft.gpg
-        sudo install -o root -g root -m 644 /tmp/packages.microsoft.gpg /etc/apt/keyrings/packages.microsoft.gpg
-        rm -f /tmp/packages.microsoft.gpg
-        echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | sudo tee /etc/apt/sources.list.d/vscode.list >/dev/null
-        sudo apt-get update -qq && sudo apt-get install -y -qq code
-        ok "VS Code installed"
-    elif command_exists dnf; then
-        info "Installing VS Code via DNF..."
-        sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
-        sudo sh -c 'echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com/yumrepos/vscode\nenabled=1\ngpgcheck=1\ngpgkey=https://packages.microsoft.com/keys/microsoft.asc" > /etc/yum.repos.d/vscode.repo'
-        sudo dnf install -y code
-        ok "VS Code installed"
-    elif command_exists pacman; then
-        info "Installing VS Code (OSS) via pacman..."
-        sudo pacman -S --noconfirm code 2>/dev/null || {
-            warn "code not in pacman — try AUR (yay -S visual-studio-code-bin) or download from https://code.visualstudio.com/"
-        }
+        installed_now=true
     else
         warn "Install VS Code manually: https://code.visualstudio.com/"
+    fi
+
+    if vscode_cli="$(vscode_cli_path 2>/dev/null)"; then
+        info "Installing Tokyo Night VS Code theme extension..."
+        if "$vscode_cli" --install-extension enkia.tokyo-night --force >/dev/null 2>&1; then
+            ok "Tokyo Night theme extension installed"
+        else
+            warn "Could not auto-install Tokyo Night theme extension; install manually: code --install-extension enkia.tokyo-night"
+        fi
+
+        if [ -d "$DOTFILES_DIR/vscode" ]; then
+            restow_package "vscode" "VS Code base settings stowed"
+            vscode_merge_settings
+        fi
+    elif [ "$installed_now" = false ]; then
+        warn "VS Code is not available on PATH; skipped theme extension install and settings stow"
     fi
 }
 
@@ -757,7 +854,13 @@ verify_tool_installed() {
         python) cmd="pyenv" ;;
         docker) cmd="docker" ;;
         kubernetes) cmd="kubectl" ;;
-        vscode) cmd="code" ;;
+        vscode)
+            if vscode_cli_path >/dev/null 2>&1; then
+                return 0
+            fi
+            warn "vscode installed but no VS Code CLI found — open VS Code and install the 'code' shell command."
+            return 0
+            ;;
         *) return 0 ;;
     esac
     command_exists "$cmd" && return 0
@@ -812,20 +915,6 @@ uninstall_via_brew() {
 uninstall_ghostty() {
     local purge="${1:-false}"
     uninstall_via_brew ghostty cask "$purge"
-    if command_exists pacman && pacman -Q ghostty >/dev/null 2>&1; then
-        info "Uninstalling Ghostty via pacman..."
-        if [[ "$purge" == true ]]; then
-            sudo pacman -Rns --noconfirm ghostty || warn "Ghostty uninstall encountered an issue"
-        else
-            sudo pacman -R --noconfirm ghostty || warn "Ghostty uninstall encountered an issue"
-        fi
-    elif command_exists dnf && rpm -q ghostty >/dev/null 2>&1; then
-        info "Uninstalling Ghostty via DNF..."
-        sudo dnf remove -y ghostty || warn "Ghostty uninstall encountered an issue"
-    elif command_exists snap && snap list ghostty >/dev/null 2>&1; then
-        info "Uninstalling Ghostty via Snap..."
-        sudo snap remove ghostty || warn "Ghostty uninstall encountered an issue"
-    fi
     if [ -d "$DOTFILES_DIR/ghostty" ]; then
         unstow_package "ghostty" "Ghostty config unstowed"
     fi
@@ -863,16 +952,6 @@ uninstall_deno() {
 
 uninstall_golang() {
     uninstall_via_brew go formula
-    if command_exists apt-get && dpkg -s golang-go >/dev/null 2>&1; then
-        info "Uninstalling Go via apt..."
-        sudo apt-get remove -y golang-go || warn "Go uninstall encountered an issue"
-    elif command_exists dnf && rpm -q golang >/dev/null 2>&1; then
-        info "Uninstalling Go via DNF..."
-        sudo dnf remove -y golang || warn "Go uninstall encountered an issue"
-    elif command_exists pacman && pacman -Q go >/dev/null 2>&1; then
-        info "Uninstalling Go via pacman..."
-        sudo pacman -R --noconfirm go || warn "Go uninstall encountered an issue"
-    fi
 }
 
 uninstall_rust() {
@@ -890,10 +969,6 @@ uninstall_rust() {
 
 uninstall_python() {
     uninstall_via_brew pyenv formula
-    if command_exists apt-get && dpkg -s pyenv >/dev/null 2>&1; then
-        info "Uninstalling pyenv via apt..."
-        sudo apt-get remove -y pyenv || warn "pyenv uninstall encountered an issue"
-    fi
     if [ -d "$HOME/.pyenv" ]; then
         info "Removing ~/.pyenv (installed Python versions included)..."
         if safe_rm_rf "$HOME/.pyenv"; then
@@ -909,14 +984,17 @@ uninstall_docker() {
 uninstall_kubernetes() {
     uninstall_via_brew kubectl formula
     uninstall_via_brew kubectx formula
-    if command_exists snap && snap list kubectl >/dev/null 2>&1; then
-        info "Uninstalling kubectl via Snap..."
-        sudo snap remove kubectl || warn "kubectl uninstall encountered an issue"
-    fi
 }
 
 uninstall_vscode() {
+    local vscode_cli
     uninstall_via_brew visual-studio-code cask "${1:-false}"
+    if vscode_cli="$(vscode_cli_path 2>/dev/null)"; then
+        "$vscode_cli" --uninstall-extension enkia.tokyo-night >/dev/null 2>&1 || true
+    fi
+    if [ -d "$DOTFILES_DIR/vscode" ]; then
+        unstow_package "vscode" "VS Code base settings unstowed"
+    fi
 }
 
 uninstall_tool() {
@@ -1077,6 +1155,8 @@ main() {
             fail "GNU Stow is required. Install it first."
         fi
     fi
+
+    install_jetbrains_mono_nerd_font
 
     stow_packages
     inject_shell_config
