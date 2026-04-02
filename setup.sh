@@ -42,12 +42,18 @@ ensure_homebrew_macos() {
 install_base_deps() {
     if command_exists brew; then
         info "Installing base dependencies via Homebrew..."
+        if ! brew update; then
+            warn "Homebrew update failed; continuing with dependency checks"
+        fi
+
         local pkg
         for pkg in stow git starship fzf; do
             if ! brew list --formula "$pkg" >/dev/null 2>&1; then
-                brew install "$pkg" || warn "Failed to install $pkg via Homebrew"
+                HOMEBREW_NO_AUTO_UPDATE=1 brew install "$pkg" || warn "Failed to install $pkg via Homebrew"
             fi
         done
+
+        return 0
     elif command_exists apt-get; then
         info "Installing base dependencies via apt..."
         sudo apt-get update -qq

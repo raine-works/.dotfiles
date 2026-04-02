@@ -607,29 +607,33 @@ install_package() {
 install_jetbrains_mono_nerd_font() {
     [[ "$(uname)" == "Darwin" ]] || return 0
 
+    # Homebrew cask state can disagree with user font directory state.
+    # Treat existing JetBrains Mono Nerd Font files as already installed.
+    local has_user_fonts=false
+    if compgen -G "$HOME/Library/Fonts/JetBrainsMono*NerdFont*.ttf" >/dev/null; then
+        has_user_fonts=true
+    fi
+
     if ! command_exists brew; then
         warn "Skipping JetBrainsMono Nerd Font install because Homebrew is unavailable"
         return 0
     fi
 
-    if brew list --cask font-jetbrains-mono-nerd-font >/dev/null 2>&1; then
+    if brew list --cask font-jetbrains-mono-nerd-font >/dev/null 2>&1 ||
+        brew list --cask font-jetbrainsmono-nerd-font >/dev/null 2>&1 ||
+        $has_user_fonts; then
         ok "JetBrainsMono Nerd Font already installed"
         return 0
     fi
 
-    if ! brew tap | grep -qx "homebrew/cask-fonts"; then
-        info "Adding Homebrew cask-fonts tap..."
-        brew tap homebrew/cask-fonts || {
-            warn "Could not add homebrew/cask-fonts tap; skipping JetBrainsMono Nerd Font install"
-            return 0
-        }
-    fi
-
     info "Installing JetBrainsMono Nerd Font via Homebrew..."
-    if brew install --cask font-jetbrains-mono-nerd-font; then
+    if HOMEBREW_NO_AUTO_UPDATE=1 brew install --cask font-jetbrains-mono-nerd-font ||
+        HOMEBREW_NO_AUTO_UPDATE=1 brew install --cask font-jetbrainsmono-nerd-font; then
         ok "JetBrainsMono Nerd Font installed"
+    elif compgen -G "$HOME/Library/Fonts/JetBrainsMono*NerdFont*.ttf" >/dev/null; then
+        ok "JetBrainsMono Nerd Font already present in ~/Library/Fonts"
     else
-        warn "JetBrainsMono Nerd Font install failed"
+        warn "JetBrainsMono Nerd Font install failed; the cask may be unavailable in current Homebrew repos"
     fi
 }
 
