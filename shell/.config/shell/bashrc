@@ -1,6 +1,8 @@
+# shellcheck shell=bash
 # ---------------------------------------------------------
 # Dotfiles: Bash-specific configuration
 # ---------------------------------------------------------
+# shellcheck source=/dev/null
 source "$HOME/.config/shell/shelldefs"
 
 # Completion
@@ -10,7 +12,8 @@ fi
 
 # Functions
 fzf-alias-finder() {
-  local result=$(alias | fzf --no-sort --ansi | cut -d'=' -f1 | sed 's/alias //')
+  local result
+  result=$(alias | fzf --no-sort --ansi | cut -d'=' -f1 | sed 's/alias //')
   if [[ -n "$result" ]]; then
     history -s "$result"
     echo "$result"

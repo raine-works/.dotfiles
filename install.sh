@@ -114,7 +114,7 @@ backup_stow_conflicts() {
             if [ -e "$target" ] || [ -L "$target" ]; then
                 case "$target" in
                     "$HOME"/*)
-                        relative_target="${target#$HOME/}"
+                        relative_target="${target#"$HOME"/}"
                         conflicts+=("$relative_target")
                         ;;
                     *)
@@ -319,7 +319,7 @@ show_menu() {
     for ((i = 0; i < num; i++)); do
         selected+=(false)
         if is_tool_detected "${TOOL_IDS[$i]}"; then
-            selected[$i]=true
+            selected[i]=true
             DETECTED_TOOLS+=("${TOOL_IDS[$i]}")
         fi
     done
@@ -355,11 +355,16 @@ show_menu() {
             $'\x1b')
                 read -rsn2 key < /dev/tty
                 case "$key" in
-                    '[A') ((cursor > 0)) && ((cursor--)) || true ;;
-                    '[B') ((cursor < num - 1)) && ((cursor++)) || true ;;
+                    '[A') if (( cursor > 0 )); then ((cursor--)); fi ;;
+                    '[B') if (( cursor < num - 1 )); then ((cursor++)); fi ;;
                 esac ;;
             ' ')
-                [[ "${selected[$cursor]}" == true ]] && selected[$cursor]=false || selected[$cursor]=true ;;
+                if [[ "${selected[$cursor]}" == true ]]; then
+                    selected[cursor]=false
+                else
+                    selected[cursor]=true
+                fi
+                ;;
             '')
                 break ;;
         esac
@@ -541,6 +546,7 @@ install_rust() {
 
     info "Installing Rust via rustup..."
     if curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y; then
+        # shellcheck source=/dev/null
         [ -s "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
         ok "Rust installed"
     else
@@ -985,7 +991,7 @@ inject_shell_config() {
 # ── Git Identity ────────────────────────────────────────
 setup_git_identity() {
     if [ -f "$HOME/.gitconfig.local" ]; then
-        ok "~/.gitconfig.local already exists"
+        ok "$HOME/.gitconfig.local already exists"
         return
     fi
 

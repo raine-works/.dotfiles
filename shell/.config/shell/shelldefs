@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # ---------------------------------------------------------
 # Shared Shell Configuration (sourced by zshrc and bashrc)
 # ---------------------------------------------------------
@@ -5,10 +6,11 @@
 # 1. ENVIRONMENT
 # ---------------------------------------------------------
 if [ "$(uname)" = "Darwin" ]; then
-    export HOST_IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null)
+    HOST_IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null)
 else
-    export HOST_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+    HOST_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
 fi
+export HOST_IP
 export STARSHIP_CONFIG=~/.config/starship/starship.toml
 
 # 2. GENERAL ALIASES
@@ -29,6 +31,7 @@ alias chrome='open -a "Google Chrome"'
 _dotfiles_tools_dir="$HOME/.config/shell/tools"
 if [ -d "$_dotfiles_tools_dir" ]; then
     for _dotfiles_tf in "$_dotfiles_tools_dir"/*.sh; do
+        # shellcheck source=/dev/null
         if [ -f "$_dotfiles_tf" ] && ! . "$_dotfiles_tf"; then
             echo "Warning: failed to source $_dotfiles_tf" >&2
         fi

@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Python — pyenv init and PATH
 command -v pyenv >/dev/null 2>&1 || return 0
 

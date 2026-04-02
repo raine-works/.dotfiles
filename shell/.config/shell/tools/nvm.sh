@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # NVM — Node Version Manager
 export NVM_DIR="$HOME/.nvm"
 
@@ -11,6 +12,7 @@ elif command -v brew >/dev/null 2>&1; then
     [ -n "$brew_nvm_prefix" ] && [ -s "$brew_nvm_prefix/nvm.sh" ] && nvm_script="$brew_nvm_prefix/nvm.sh"
 fi
 
+# shellcheck source=/dev/null
 [ -n "$nvm_script" ] && . "$nvm_script"
 
 unset nvm_script
