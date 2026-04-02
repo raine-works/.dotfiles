@@ -4,6 +4,8 @@
 
 My personal, opinionated development environment — managed with [GNU Stow](https://www.gnu.org/software/stow/) and designed to get a new machine feeling like home in a single command.
 
+> **Platform target:** This repo is specifically designed for **macOS**. Some pieces may work elsewhere, but the installer flow, package assumptions, and defaults are macOS-first.
+
 > **Fair warning:** These dotfiles reflect *my* workflow and preferences. They ship with specific tool choices (Ghostty, Starship, fzf), a Tokyo Night Starship/VS Code theme direction, rebase-oriented Git defaults, and an alias vocabulary that makes sense to me. Feel free to fork and bend them to your own taste, but don't expect a neutral starting point — this is a setup that works for one person and is shared in the spirit of "steal what's useful."
 
 ## Overview
@@ -35,6 +37,8 @@ My personal, opinionated development environment — managed with [GNU Stow](htt
 Each top-level directory is a **Stow package** — running `stow <package>` symlinks its contents into the corresponding location under `$HOME`. Most files are symlinked only; the VS Code installer intentionally merges a tracked base config into your local `settings.json` so local edits stay out of this repo.
 
 ## Quick Start
+
+These dotfiles target macOS and use Homebrew throughout setup and tool installation.
 
 If you want everything at once — clone the repo, install dependencies, stow all packages, and set up your Git identity — run:
 
