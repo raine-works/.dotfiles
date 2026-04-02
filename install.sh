@@ -14,6 +14,18 @@ warn()  { printf "\033[1;33m[warn]\033[0m  %s\n" "$1"; }
 fail()  { printf "\033[1;31m[error]\033[0m %s\n" "$1" >&2; exit 1; }
 command_exists() { command -v "$1" >/dev/null 2>&1; }
 
+rust_toolchain_detected() {
+    command_exists rustc && return 0
+    command_exists cargo && return 0
+    command_exists rustup && return 0
+    [ -x "$HOME/.cargo/bin/rustc" ] && return 0
+    [ -x "$HOME/.cargo/bin/cargo" ] && return 0
+    [ -x "$HOME/.cargo/bin/rustup" ] && return 0
+    [ -d "$HOME/.rustup" ] && return 0
+    [ -d "$HOME/.cargo/bin" ] && return 0
+    return 1
+}
+
 on_err() {
     local line_no="$1"
     local exit_code="$2"
@@ -157,7 +169,7 @@ is_tool_detected() {
         bun)        command_exists bun ;;
         deno)       command_exists deno ;;
         golang)     command_exists go ;;
-        rust)       command_exists rustc ;;
+        rust)       rust_toolchain_detected ;;
         python)     command_exists pyenv ;;
         docker)     command_exists docker ;;
         kubernetes) command_exists kubectl ;;
@@ -418,7 +430,7 @@ install_golang() {
 }
 
 install_rust() {
-    if command_exists rustc; then
+    if rust_toolchain_detected; then
         ok "Rust already installed"
         return
     fi
@@ -602,7 +614,12 @@ verify_tool_installed() {
         bun)         cmd="bun" ;;
         deno)        cmd="deno" ;;
         golang)      cmd="go" ;;
-        rust)        cmd="rustc" ;;
+        rust)        rust_toolchain_detected || {
+                          warn "Rust install completed but no toolchain was detected"
+                          return 0
+                      }
+                      command_exists rustc || warn "Rust detected but 'rustc' not found in PATH — you may need to restart your shell."
+                      return 0 ;;
         python)      cmd="pyenv" ;;
         docker)      cmd="docker" ;;
         kubernetes)  cmd="kubectl" ;;
