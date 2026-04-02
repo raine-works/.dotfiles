@@ -43,7 +43,7 @@ curl -fsSL https://raw.githubusercontent.com/raine-works/.dotfiles/master/setup.
 
 The setup script will:
 1. On macOS, auto-install **Homebrew** first if it's missing
-2. Install base dependencies — **Git**, **GNU Stow**, **Starship**, and **fzf** — via Homebrew (macOS) or apt (Debian/Ubuntu)
+2. Install base dependencies — **Git**, **GNU Stow**, **Starship**, and **fzf** — via Homebrew (macOS) or apt/dnf/pacman (Linux)
 3. Clone this repo to `~/.dotfiles` (or pull latest if it already exists)
 4. Hand off to the interactive installer (`install.sh`), which will:
 5. Ensure **GNU Stow** is available (defensive check; installs via Homebrew if needed)
@@ -168,9 +168,9 @@ The `HOST_IP` variable is auto-detected from your active network interface.
 | Module | Aliases / Config |
 |---|---|
 | `tools/nvm.sh` | NVM initialization and PATH setup |
-| `tools/bun.sh` | Bun runtime PATH and shell completions |
+| `tools/bun.sh` | Bun shell completions |
 | `tools/deno.sh` | Deno install path export (`$DENO_INSTALL`) and PATH setup |
-| `tools/docker.sh` | `d`, `dps`, `dstop` (stop all containers), `dc`, `dcu`, `dcd` |
+| `tools/docker.sh` | `d`, `dps`, `dstop` (safe stop-all helper), `dc`, `dcu`, `dcd` |
 | `tools/golang.sh` | GOPATH defaulting (`$HOME/go` when unset) and `GOPATH/bin` PATH setup |
 | `tools/kubernetes.sh` | `k`, `ka`, `ke`, `kg`, `kd`, `kgpo`, `kgd`, `kgs`, `kgpow`, `kc`/`kns`, `kl`, `klp`/`klns` (fzf pod log selector), `kdel`, `kdelp` (fzf pod deletion) |
 | `tools/python.sh` | pyenv initialization and PATH setup |

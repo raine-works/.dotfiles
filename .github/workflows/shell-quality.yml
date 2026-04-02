@@ -1,0 +1,51 @@
+name: Shell Quality
+
+on:
+  pull_request:
+    paths:
+      - '**/*.sh'
+      - 'install.sh'
+      - 'setup.sh'
+      - '.github/workflows/shell-quality.yml'
+  push:
+    branches:
+      - master
+    paths:
+      - '**/*.sh'
+      - 'install.sh'
+      - 'setup.sh'
+      - '.github/workflows/shell-quality.yml'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install linters
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck shfmt zsh
+
+      - name: Bash syntax checks
+        run: |
+          bash -n install.sh
+          bash -n setup.sh
+          bash -n shell/.config/shell/shelldefs
+          bash -n shell/.config/shell/bashrc
+          for file in shell/.config/shell/tools/*.sh; do
+            bash -n "$file"
+          done
+
+      - name: Zsh syntax check
+        run: zsh -n shell/.config/shell/zshrc
+
+      - name: Shellcheck
+        run: |
+          shellcheck install.sh setup.sh shell/.config/shell/shelldefs shell/.config/shell/bashrc shell/.config/shell/tools/*.sh
+
+      - name: shfmt (check only)
+        run: |
+          shfmt -d -i 4 -ci install.sh setup.sh shell/.config/shell/shelldefs shell/.config/shell/bashrc shell/.config/shell/tools/*.sh

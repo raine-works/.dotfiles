@@ -3,6 +3,7 @@ export NVM_DIR="$HOME/.nvm"
 
 nvm_script=""
 
+# Prefer the user-managed NVM install path, then fall back to Homebrew.
 if [ -s "$NVM_DIR/nvm.sh" ]; then
     nvm_script="$NVM_DIR/nvm.sh"
 elif command -v brew >/dev/null 2>&1; then

@@ -56,7 +56,10 @@ install_base_deps() {
         fi
     elif command_exists dnf; then
         info "Installing base dependencies via DNF..."
-        sudo dnf install -y git stow fzf || true
+        local pkg
+        for pkg in git stow fzf; do
+            sudo dnf install -y "$pkg" || warn "Failed to install $pkg via DNF"
+        done
 
         if ! command_exists starship; then
             info "Installing Starship prompt..."
@@ -64,7 +67,10 @@ install_base_deps() {
         fi
     elif command_exists pacman; then
         info "Installing base dependencies via pacman..."
-        sudo pacman -S --noconfirm git stow fzf || true
+        local pkg
+        for pkg in git stow fzf; do
+            sudo pacman -S --noconfirm "$pkg" || warn "Failed to install $pkg via pacman"
+        done
 
         if ! command_exists starship; then
             info "Installing Starship prompt..."
@@ -83,7 +89,9 @@ clone_dotfiles() {
     if [ -d "$DOTFILES_DIR/.git" ]; then
         info "Dotfiles repo exists — pulling latest..."
         if ! git -C "$DOTFILES_DIR" pull --rebase; then
-            fail "Failed to update dotfiles repo at $DOTFILES_DIR"
+            warn "git pull --rebase failed. Attempting to abort any in-progress rebase..."
+            git -C "$DOTFILES_DIR" rebase --abort >/dev/null 2>&1 || true
+            fail "Failed to update dotfiles repo at $DOTFILES_DIR. Check: git -C $DOTFILES_DIR status"
         fi
     elif [ -d "$DOTFILES_DIR" ]; then
         fail "$DOTFILES_DIR exists but is not a git repo. Remove it first."

@@ -43,10 +43,64 @@ eval_brew_shellenv() {
 BACKUP_DIR="$HOME/.dotfiles-backups"
 BACKUP_ARCHIVE=""
 
+has_tty() {
+    [ -r /dev/tty ] && [ -w /dev/tty ]
+}
+
+is_non_interactive() {
+    [ "${DOTFILES_NONINTERACTIVE:-0}" = "1" ] || [ "${CI:-}" = "true" ]
+}
+
+prompt_read() {
+    local out_var="$1"
+    local prompt="$2"
+    local default_value="${3:-}"
+    local answer
+
+    if is_non_interactive; then
+        answer="$default_value"
+    elif has_tty; then
+        if ! read -rp "$prompt" answer < /dev/tty; then
+            answer="$default_value"
+        fi
+    else
+        answer="$default_value"
+    fi
+
+    printf -v "$out_var" '%s' "$answer"
+}
+
+safe_rm_rf() {
+    local target="$1"
+
+    if [ -z "$HOME" ] || [ "$HOME" = "/" ]; then
+        warn "Refusing to remove '$target': invalid HOME"
+        return 1
+    fi
+
+    case "$target" in
+        "$HOME"|"")
+            warn "Refusing to remove protected path: $target"
+            return 1
+            ;;
+        "$HOME"/*)
+            ;;
+        *)
+            warn "Refusing to remove non-home path: $target"
+            return 1
+            ;;
+    esac
+
+    if [ -e "$target" ] || [ -L "$target" ]; then
+        rm -rf "$target"
+    fi
+    return 0
+}
+
 backup_stow_conflicts() {
     local pkg="$1"
     local conflicts=()
-    local line target
+    local line target relative_target
 
     while IFS= read -r line; do
         if [[ "$line" =~ \*\ stowing\ .*\ would\ cause\ conflicts: ]] || \
@@ -57,7 +111,17 @@ backup_stow_conflicts() {
         target=$(echo "$line" | grep -oE '~?/[^ ]+' | head -1 || true)
         if [ -n "$target" ]; then
             target="${target/\~/$HOME}"
-            [ -e "$target" ] || [ -L "$target" ] && conflicts+=("$target")
+            if [ -e "$target" ] || [ -L "$target" ]; then
+                case "$target" in
+                    "$HOME"/*)
+                        relative_target="${target#$HOME/}"
+                        conflicts+=("$relative_target")
+                        ;;
+                    *)
+                        warn "Skipping backup target outside HOME: $target"
+                        ;;
+                esac
+            fi
         fi
     done < <(stow -n --simulate -d "$DOTFILES_DIR" -t "$HOME" --restow "$pkg" 2>&1 || true)
 
@@ -71,15 +135,24 @@ backup_stow_conflicts() {
     BACKUP_ARCHIVE="$BACKUP_DIR/dotfiles-backup-${pkg}-${timestamp}.tar.gz"
 
     info "Backing up ${#conflicts[@]} conflicting file(s) to $BACKUP_ARCHIVE ..."
-    tar -czf "$BACKUP_ARCHIVE" --ignore-failed-read "${conflicts[@]}" 2>/dev/null || true
+    if ! tar -C "$HOME" -czf "$BACKUP_ARCHIVE" --ignore-failed-read "${conflicts[@]}" 2>/dev/null; then
+        warn "Failed to create backup archive for $pkg"
+        BACKUP_ARCHIVE=""
+        return 0
+    fi
     ok "Backup created: $BACKUP_ARCHIVE"
 
     # Trim backups to the last 5 per package prefix
-    local count
+    local count prune_count old_file
     count=$(find "$BACKUP_DIR" -maxdepth 1 -name "dotfiles-backup-${pkg}-*.tar.gz" | wc -l | tr -d ' ')
     if (( count > 5 )); then
-        find "$BACKUP_DIR" -maxdepth 1 -name "dotfiles-backup-${pkg}-*.tar.gz" \
-            | sort | head -n $(( count - 5 )) | xargs rm -f
+        prune_count=$(( count - 5 ))
+        while IFS= read -r old_file; do
+            [ -n "$old_file" ] && rm -f "$old_file"
+        done < <(
+            find "$BACKUP_DIR" -maxdepth 1 -name "dotfiles-backup-${pkg}-*.tar.gz" \
+                | sort | head -n "$prune_count"
+        )
     fi
 
     return 0
@@ -93,11 +166,22 @@ restore_stow_backup() {
     local answer
     printf "\n"
     warn "Stow operation failed. A backup was saved to: $BACKUP_ARCHIVE"
-    read -rp "Restore the backup now? [Y/n]: " answer < /dev/tty
+
+    if tar -tzf "$BACKUP_ARCHIVE" 2>/dev/null | grep -Eq '(^/|(^|/)\.\.(|/))'; then
+        warn "Skipping restore: backup archive contains unsafe paths"
+        return 1
+    fi
+
+    prompt_read answer "Restore the backup now? [Y/n]: " "n"
     case "$answer" in
-        n|N|no|NO) info "Backup retained at $BACKUP_ARCHIVE — restore manually with: tar -xzf $BACKUP_ARCHIVE -C /" ;;
-        *) tar -xzf "$BACKUP_ARCHIVE" -C / 2>/dev/null || tar -xzf "$BACKUP_ARCHIVE" -C "$HOME" 2>/dev/null || true
-           ok "Backup restored" ;;
+        n|N|no|NO) info "Backup retained at $BACKUP_ARCHIVE — restore manually with: tar -xzf $BACKUP_ARCHIVE -C $HOME" ;;
+        *)
+            if tar -xzf "$BACKUP_ARCHIVE" -C "$HOME" 2>/dev/null; then
+                ok "Backup restored"
+            else
+                warn "Backup restore failed"
+            fi
+            ;;
     esac
 }
 
@@ -240,6 +324,12 @@ show_menu() {
         fi
     done
 
+    if is_non_interactive || ! has_tty || [ -z "${TERM:-}" ] || [ "${TERM:-}" = "dumb" ]; then
+        warn "No interactive terminal available; using detected tool selection"
+        SELECTED_TOOLS=("${DETECTED_TOOLS[@]}")
+        return 0
+    fi
+
     tput civis 2>/dev/null || true
 
     while true; do
@@ -367,10 +457,18 @@ install_nvm() {
     else
         info "Installing NVM via install script (latest)..."
         local nvm_latest
-        nvm_latest=$(curl -fsSL https://api.github.com/repos/nvm-sh/nvm/releases/latest | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
+        nvm_latest=$(curl -fsSL https://api.github.com/repos/nvm-sh/nvm/releases/latest | grep -m1 '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
+        if [[ -z "$nvm_latest" || "$nvm_latest" != v* ]]; then
+            fail "Could not resolve latest NVM release tag"
+        fi
         PROFILE=/dev/null bash <(curl -fsSL "https://raw.githubusercontent.com/nvm-sh/nvm/${nvm_latest}/install.sh")
     fi
-    ok "NVM installed"
+
+    if [ -d "$HOME/.nvm" ] || command_exists nvm; then
+        ok "NVM installed"
+    else
+        warn "NVM installation may have failed — verify manually"
+    fi
 }
 
 install_bun() {
@@ -474,6 +572,10 @@ install_python() {
         info "Installing latest stable Python 3..."
         local latest
         latest=$(pyenv install --list | grep -E '^\s+3\.[0-9]+\.[0-9]+$' | tail -1 | tr -d ' ')
+        if [ -z "$latest" ]; then
+            warn "Could not determine latest stable Python 3 version via pyenv"
+            return
+        fi
         pyenv install "$latest" && pyenv global "$latest"
         ok "Python $latest installed and set as global"
     fi
@@ -701,8 +803,9 @@ uninstall_nvm() {
     uninstall_via_brew nvm formula
     if [ -d "$HOME/.nvm" ]; then
         info "Removing ~/.nvm..."
-        rm -rf "$HOME/.nvm"
-        ok "Removed ~/.nvm"
+        if safe_rm_rf "$HOME/.nvm"; then
+            ok "Removed ~/.nvm"
+        fi
     fi
 }
 
@@ -710,8 +813,9 @@ uninstall_bun() {
     uninstall_via_brew bun formula
     if [ -d "$HOME/.bun" ]; then
         info "Removing ~/.bun..."
-        rm -rf "$HOME/.bun"
-        ok "Removed ~/.bun"
+        if safe_rm_rf "$HOME/.bun"; then
+            ok "Removed ~/.bun"
+        fi
     fi
 }
 
@@ -719,8 +823,9 @@ uninstall_deno() {
     uninstall_via_brew deno formula
     if [ -d "$HOME/.deno" ]; then
         info "Removing ~/.deno..."
-        rm -rf "$HOME/.deno"
-        ok "Removed ~/.deno"
+        if safe_rm_rf "$HOME/.deno"; then
+            ok "Removed ~/.deno"
+        fi
     fi
 }
 
@@ -745,7 +850,8 @@ uninstall_rust() {
     fi
     if [ -d "$HOME/.rustup" ] || [ -d "$HOME/.cargo" ]; then
         info "Removing Rust toolchain directories..."
-        rm -rf "$HOME/.rustup" "$HOME/.cargo"
+        safe_rm_rf "$HOME/.rustup"
+        safe_rm_rf "$HOME/.cargo"
         ok "Removed ~/.rustup and ~/.cargo"
     fi
 }
@@ -758,8 +864,9 @@ uninstall_python() {
     fi
     if [ -d "$HOME/.pyenv" ]; then
         info "Removing ~/.pyenv (installed Python versions included)..."
-        rm -rf "$HOME/.pyenv"
-        ok "Removed ~/.pyenv"
+        if safe_rm_rf "$HOME/.pyenv"; then
+            ok "Removed ~/.pyenv"
+        fi
     fi
 }
 
@@ -821,10 +928,10 @@ handle_deselected_tools() {
     tool_lineup "${deselected[@]}"
 
     local remove_answer purge_answer purge=false
-    read -rp "Uninstall deselected tools and remove their managed config/data? [y/N]: " remove_answer < /dev/tty
+    prompt_read remove_answer "Uninstall deselected tools and remove their managed config/data? [y/N]: " "n"
     case "$remove_answer" in
         y|Y|yes|YES)
-            read -rp "Also purge package-manager leftovers where supported (Homebrew zap, etc.)? [y/N]: " purge_answer < /dev/tty
+            prompt_read purge_answer "Also purge package-manager leftovers where supported (Homebrew zap, etc.)? [y/N]: " "n"
             case "$purge_answer" in
                 y|Y|yes|YES) purge=true ;;
             esac
@@ -884,15 +991,12 @@ setup_git_identity() {
 
     echo ""
     info "Setting up Git identity (~/.gitconfig.local)"
-    read -rp "  Git name:  " git_name  < /dev/tty
-    read -rp "  Git email: " git_email < /dev/tty
+    prompt_read git_name "  Git name:  " ""
+    prompt_read git_email "  Git email: " ""
 
     if [ -n "$git_name" ] && [ -n "$git_email" ]; then
-        cat > "$HOME/.gitconfig.local" <<EOF
-[user]
-    name = $git_name
-    email = $git_email
-EOF
+        git config --file "$HOME/.gitconfig.local" user.name "$git_name"
+        git config --file "$HOME/.gitconfig.local" user.email "$git_email"
         ok "Created ~/.gitconfig.local"
     else
         warn "Skipped — create ~/.gitconfig.local manually later."

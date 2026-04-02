@@ -20,4 +20,6 @@ fzf-alias-finder() {
 alias aliases='fzf-alias-finder'
 
 # Prompt (must be last)
-eval "$(starship init bash)"
+if command -v starship >/dev/null 2>&1; then
+  eval "$(starship init bash)" || echo "Warning: starship init failed" >&2
+fi

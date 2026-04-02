@@ -21,7 +21,7 @@
     # Better colors for UI
     pager = less -FX
 
-    # --- DELTA THEME SETTINGS (Uncomment only if Delta is installed) ---
+    # --- DELTA THEME SETTINGS (Uncomment only if Delta is installed: brew install git-delta) ---
     # pager = delta
 
 [interactive]

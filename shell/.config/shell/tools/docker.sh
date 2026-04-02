@@ -3,7 +3,18 @@ command -v docker >/dev/null 2>&1 || return 0
 
 alias d='docker'
 alias dps='docker ps'
-alias dstop='docker stop $(docker ps -aq)'
 alias dc='docker compose'
 alias dcu='docker compose up'
 alias dcd='docker compose down'
+
+dstop() {
+	local containers
+	containers="$(docker ps -aq 2>/dev/null)" || return 1
+
+	if [ -z "$containers" ]; then
+		echo "No containers to stop"
+		return 0
+	fi
+
+	docker stop $containers
+}

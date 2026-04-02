@@ -26,7 +26,7 @@ Each top-level directory is a **Stow package**. The directory tree inside each p
 ```
 .dotfiles/
 ├── agents.md               ← this file
-├── install.sh              ← interactive installer (~550 lines)
+├── install.sh              ← interactive installer
 ├── setup.sh                ← bootstrap (curl | bash entry point)
 ├── README.md
 ├── .gitignore              ← ignores .DS_Store and *.local files
@@ -40,9 +40,11 @@ Each top-level directory is a **Stow package**. The directory tree inside each p
 │           ├── bun.sh
 │           ├── deno.sh
 │           ├── docker.sh
+│           ├── golang.sh
 │           ├── kubernetes.sh
 │           ├── nvm.sh
-│           └── python.sh
+│           ├── python.sh
+│           └── rust.sh
 │
 ├── starship/               ← stow package: Starship prompt config
 │   └── .config/starship/starship.toml
@@ -102,7 +104,7 @@ Always follow this pattern when adding a new tool file.
 ### `install.sh` (interactive installer)
 1. Presents an arrow-key/spacebar TUI menu to select tools
 2. Stows core packages: `shell`, `starship`, `gitconfig`
-3. Injects `source ~/.config/shell/{zshrc|bashrc}` into user's existing rc file
+3. Injects `[ -f ~/.config/shell/{zshrc|bashrc} ] && source ... # dotfiles-managed:raine-works` into user's existing rc file
 4. Runs selected tool installers
 5. Prompts to create `~/.gitconfig.local` with name/email
 
@@ -130,7 +132,7 @@ Always follow this pattern when adding a new tool file.
 ### Adding a new Stow package
 
 1. Create `<packagename>/<mirror of $HOME path>/` — e.g. `foo/.config/foo/config`
-2. Add the package name to the `STOW_PACKAGES` array in `install.sh`
+2. Add the package name to the `PACKAGES` array in `install.sh`
 3. Test first with dry run: `stow -n --simulate -d ~/.dotfiles -t ~ <packagename>`
 
 ### Adding a tool to the installer
