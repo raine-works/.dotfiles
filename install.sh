@@ -58,7 +58,8 @@ vscode_merge_settings() {
 
     if command_exists python3; then
         local merge_error
-        if merge_error="$(python3 - "$base_file" "$settings_file" 2>&1 <<'PY'
+        if merge_error="$(
+            python3 - "$base_file" "$settings_file" 2>&1 <<'PY'
 import json
 import os
 import sys
