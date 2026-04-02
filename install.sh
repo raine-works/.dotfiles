@@ -8,10 +8,13 @@ LEGACY_SOURCE_TAG="# dotfiles-managed"
 DETECTED_TOOLS=()
 
 # ── Helpers ──────────────────────────────────────────────
-info()  { printf "\033[1;34m[info]\033[0m  %s\n" "$1"; }
-ok()    { printf "\033[1;32m[ok]\033[0m    %s\n" "$1"; }
-warn()  { printf "\033[1;33m[warn]\033[0m  %s\n" "$1"; }
-fail()  { printf "\033[1;31m[error]\033[0m %s\n" "$1" >&2; exit 1; }
+info() { printf "\033[1;34m[info]\033[0m  %s\n" "$1"; }
+ok() { printf "\033[1;32m[ok]\033[0m    %s\n" "$1"; }
+warn() { printf "\033[1;33m[warn]\033[0m  %s\n" "$1"; }
+fail() {
+    printf "\033[1;31m[error]\033[0m %s\n" "$1" >&2
+    exit 1
+}
 command_exists() { command -v "$1" >/dev/null 2>&1; }
 
 rust_toolchain_detected() {
@@ -60,7 +63,7 @@ prompt_read() {
     if is_non_interactive; then
         answer="$default_value"
     elif has_tty; then
-        if ! read -rp "$prompt" answer < /dev/tty; then
+        if ! read -rp "$prompt" answer </dev/tty; then
             answer="$default_value"
         fi
     else
@@ -79,12 +82,11 @@ safe_rm_rf() {
     fi
 
     case "$target" in
-        "$HOME"|"")
+        "$HOME" | "")
             warn "Refusing to remove protected path: $target"
             return 1
             ;;
-        "$HOME"/*)
-            ;;
+        "$HOME"/*) ;;
         *)
             warn "Refusing to remove non-home path: $target"
             return 1
@@ -103,9 +105,9 @@ backup_stow_conflicts() {
     local line target relative_target
 
     while IFS= read -r line; do
-        if [[ "$line" =~ \*\ stowing\ .*\ would\ cause\ conflicts: ]] || \
-           [[ "$line" =~ \*\ existing\ target\ is ]] || \
-           [[ "$line" =~ \*\ cannot\ stow ]]; then
+        if [[ "$line" =~ \*\ stowing\ .*\ would\ cause\ conflicts: ]] ||
+            [[ "$line" =~ \*\ existing\ target\ is ]] ||
+            [[ "$line" =~ \*\ cannot\ stow ]]; then
             continue
         fi
         target=$(echo "$line" | grep -oE '~?/[^ ]+' | head -1 || true)
@@ -145,13 +147,13 @@ backup_stow_conflicts() {
     # Trim backups to the last 5 per package prefix
     local count prune_count old_file
     count=$(find "$BACKUP_DIR" -maxdepth 1 -name "dotfiles-backup-${pkg}-*.tar.gz" | wc -l | tr -d ' ')
-    if (( count > 5 )); then
-        prune_count=$(( count - 5 ))
+    if ((count > 5)); then
+        prune_count=$((count - 5))
         while IFS= read -r old_file; do
             [ -n "$old_file" ] && rm -f "$old_file"
         done < <(
-            find "$BACKUP_DIR" -maxdepth 1 -name "dotfiles-backup-${pkg}-*.tar.gz" \
-                | sort | head -n "$prune_count"
+            find "$BACKUP_DIR" -maxdepth 1 -name "dotfiles-backup-${pkg}-*.tar.gz" |
+                sort | head -n "$prune_count"
         )
     fi
 
@@ -174,7 +176,7 @@ restore_stow_backup() {
 
     prompt_read answer "Restore the backup now? [Y/n]: " "n"
     case "$answer" in
-        n|N|no|NO) info "Backup retained at $BACKUP_ARCHIVE — restore manually with: tar -xzf $BACKUP_ARCHIVE -C $HOME" ;;
+        n | N | no | NO) info "Backup retained at $BACKUP_ARCHIVE — restore manually with: tar -xzf $BACKUP_ARCHIVE -C $HOME" ;;
         *)
             if tar -xzf "$BACKUP_ARCHIVE" -C "$HOME" 2>/dev/null; then
                 ok "Backup restored"
@@ -248,17 +250,17 @@ tool_name() {
 
 is_tool_detected() {
     case "$1" in
-        ghostty)    command_exists ghostty ;;
-        nvm)        [ -d "$HOME/.nvm" ] ;;
-        bun)        command_exists bun ;;
-        deno)       command_exists deno ;;
-        golang)     command_exists go ;;
-        rust)       rust_toolchain_detected ;;
-        python)     command_exists pyenv ;;
-        docker)     command_exists docker ;;
+        ghostty) command_exists ghostty ;;
+        nvm) [ -d "$HOME/.nvm" ] ;;
+        bun) command_exists bun ;;
+        deno) command_exists deno ;;
+        golang) command_exists go ;;
+        rust) rust_toolchain_detected ;;
+        python) command_exists pyenv ;;
+        docker) command_exists docker ;;
         kubernetes) command_exists kubectl ;;
-        vscode)     command_exists code ;;
-        *)          return 1 ;;
+        vscode) command_exists code ;;
+        *) return 1 ;;
     esac
 }
 
@@ -300,7 +302,7 @@ TOOL_REGISTRY=(
 
 TOOL_IDS=() TOOL_NAMES=() TOOL_DESCS=()
 for _entry in "${TOOL_REGISTRY[@]}"; do
-    IFS='|' read -r _id _name _desc <<< "$_entry"
+    IFS='|' read -r _id _name _desc <<<"$_entry"
     TOOL_IDS+=("$_id")
     TOOL_NAMES+=("$_name")
     TOOL_DESCS+=("$_desc")
@@ -350,14 +352,15 @@ show_menu() {
         done
         printf "\r\033[K\033[2m   ↑/↓ navigate · space toggle · enter confirm\033[0m"
 
-        IFS= read -rsn1 key < /dev/tty
+        IFS= read -rsn1 key </dev/tty
         case "$key" in
             $'\x1b')
-                read -rsn2 key < /dev/tty
+                read -rsn2 key </dev/tty
                 case "$key" in
-                    '[A') if (( cursor > 0 )); then ((cursor--)); fi ;;
-                    '[B') if (( cursor < num - 1 )); then ((cursor++)); fi ;;
-                esac ;;
+                    '[A') if ((cursor > 0)); then ((cursor--)); fi ;;
+                    '[B') if ((cursor < num - 1)); then ((cursor++)); fi ;;
+                esac
+                ;;
             ' ')
                 if [[ "${selected[$cursor]}" == true ]]; then
                     selected[cursor]=false
@@ -366,7 +369,8 @@ show_menu() {
                 fi
                 ;;
             '')
-                break ;;
+                break
+                ;;
         esac
     done
 
@@ -386,10 +390,22 @@ show_menu() {
 # ── Tool Installers ──────────────────────────────────────
 # detect_package_manager: echo the first available manager (brew|apt|dnf|pacman)
 detect_package_manager() {
-    if command_exists brew;    then echo "brew";   return; fi
-    if command_exists apt-get; then echo "apt";    return; fi
-    if command_exists dnf;     then echo "dnf";    return; fi
-    if command_exists pacman;  then echo "pacman"; return; fi
+    if command_exists brew; then
+        echo "brew"
+        return
+    fi
+    if command_exists apt-get; then
+        echo "apt"
+        return
+    fi
+    if command_exists dnf; then
+        echo "dnf"
+        return
+    fi
+    if command_exists pacman; then
+        echo "pacman"
+        return
+    fi
     echo ""
 }
 
@@ -408,18 +424,23 @@ install_package() {
                 brew install --cask "$brew_pkg"
             else
                 brew install "$brew_pkg"
-            fi ;;
+            fi
+            ;;
         apt)
             [ -z "$apt_pkg" ] && return 1
-            sudo apt-get update -qq && sudo apt-get install -y -qq "$apt_pkg" ;;
+            sudo apt-get update -qq && sudo apt-get install -y -qq "$apt_pkg"
+            ;;
         dnf)
             [ -z "$dnf_pkg" ] && return 1
-            sudo dnf install -y "$dnf_pkg" ;;
+            sudo dnf install -y "$dnf_pkg"
+            ;;
         pacman)
             [ -z "$pacman_pkg" ] && return 1
-            sudo pacman -S --noconfirm "$pacman_pkg" ;;
+            sudo pacman -S --noconfirm "$pacman_pkg"
+            ;;
         *)
-            return 1 ;;
+            return 1
+            ;;
     esac
 }
 
@@ -691,7 +712,7 @@ install_vscode() {
     elif command_exists apt-get; then
         info "Installing VS Code via apt..."
         sudo apt-get install -y -qq wget gpg
-        wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > /tmp/packages.microsoft.gpg
+        wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor >/tmp/packages.microsoft.gpg
         sudo install -o root -g root -m 644 /tmp/packages.microsoft.gpg /etc/apt/keyrings/packages.microsoft.gpg
         rm -f /tmp/packages.microsoft.gpg
         echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | sudo tee /etc/apt/sources.list.d/vscode.list >/dev/null
@@ -717,22 +738,27 @@ verify_tool_installed() {
     local tool="$1"
     local cmd
     case "$tool" in
-        ghostty)     cmd="ghostty" ;;
-        nvm)         [ -d "$HOME/.nvm" ] && return 0; return 1 ;;
-        bun)         cmd="bun" ;;
-        deno)        cmd="deno" ;;
-        golang)      cmd="go" ;;
-        rust)        rust_toolchain_detected || {
-                          warn "Rust install completed but no toolchain was detected"
-                          return 0
-                      }
-                      command_exists rustc || warn "Rust detected but 'rustc' not found in PATH — you may need to restart your shell."
-                      return 0 ;;
-        python)      cmd="pyenv" ;;
-        docker)      cmd="docker" ;;
-        kubernetes)  cmd="kubectl" ;;
-        vscode)      cmd="code" ;;
-        *)           return 0 ;;
+        ghostty) cmd="ghostty" ;;
+        nvm)
+            [ -d "$HOME/.nvm" ] && return 0
+            return 1
+            ;;
+        bun) cmd="bun" ;;
+        deno) cmd="deno" ;;
+        golang) cmd="go" ;;
+        rust)
+            rust_toolchain_detected || {
+                warn "Rust install completed but no toolchain was detected"
+                return 0
+            }
+            command_exists rustc || warn "Rust detected but 'rustc' not found in PATH — you may need to restart your shell."
+            return 0
+            ;;
+        python) cmd="pyenv" ;;
+        docker) cmd="docker" ;;
+        kubernetes) cmd="kubectl" ;;
+        vscode) cmd="code" ;;
+        *) return 0 ;;
     esac
     command_exists "$cmd" && return 0
     warn "$tool installed but '${cmd}' not found in PATH — you may need to restart your shell."
@@ -742,17 +768,17 @@ verify_tool_installed() {
 install_tool() {
     local tool="$1"
     case "$tool" in
-        ghostty)    install_ghostty ;;
-        nvm)        install_nvm ;;
-        bun)        install_bun ;;
-        deno)       install_deno ;;
-        golang)     install_golang ;;
-        rust)       install_rust ;;
-        python)     install_python ;;
-        docker)     install_docker ;;
+        ghostty) install_ghostty ;;
+        nvm) install_nvm ;;
+        bun) install_bun ;;
+        deno) install_deno ;;
+        golang) install_golang ;;
+        rust) install_rust ;;
+        python) install_python ;;
+        docker) install_docker ;;
         kubernetes) install_kubernetes ;;
-        vscode)     install_vscode ;;
-        *)          warn "No install handler for tool: $tool" ;;
+        vscode) install_vscode ;;
+        *) warn "No install handler for tool: $tool" ;;
     esac
 
     verify_tool_installed "$tool"
@@ -897,17 +923,17 @@ uninstall_tool() {
     local tool="$1"
     local purge="$2"
     case "$tool" in
-        ghostty)    uninstall_ghostty "$purge" ;;
-        nvm)        uninstall_nvm "$purge" ;;
-        bun)        uninstall_bun "$purge" ;;
-        deno)       uninstall_deno "$purge" ;;
-        golang)     uninstall_golang "$purge" ;;
-        rust)       uninstall_rust "$purge" ;;
-        python)     uninstall_python "$purge" ;;
-        docker)     uninstall_docker "$purge" ;;
+        ghostty) uninstall_ghostty "$purge" ;;
+        nvm) uninstall_nvm "$purge" ;;
+        bun) uninstall_bun "$purge" ;;
+        deno) uninstall_deno "$purge" ;;
+        golang) uninstall_golang "$purge" ;;
+        rust) uninstall_rust "$purge" ;;
+        python) uninstall_python "$purge" ;;
+        docker) uninstall_docker "$purge" ;;
         kubernetes) uninstall_kubernetes "$purge" ;;
-        vscode)     uninstall_vscode "$purge" ;;
-        *)          warn "No uninstall handler for tool: $tool" ;;
+        vscode) uninstall_vscode "$purge" ;;
+        *) warn "No uninstall handler for tool: $tool" ;;
     esac
 
     # Uninstall helpers may legitimately find nothing to remove; don't fail installer.
@@ -936,10 +962,10 @@ handle_deselected_tools() {
     local remove_answer purge_answer purge=false
     prompt_read remove_answer "Uninstall deselected tools and remove their managed config/data? [y/N]: " "n"
     case "$remove_answer" in
-        y|Y|yes|YES)
+        y | Y | yes | YES)
             prompt_read purge_answer "Also purge package-manager leftovers where supported (Homebrew zap, etc.)? [y/N]: " "n"
             case "$purge_answer" in
-                y|Y|yes|YES) purge=true ;;
+                y | Y | yes | YES) purge=true ;;
             esac
 
             info "Removing deselected tools..."
@@ -969,19 +995,27 @@ inject_shell_config() {
     local rc_file config_file
 
     case "$(basename "$SHELL")" in
-        zsh)  rc_file="$HOME/.zshrc";  config_file="$HOME/.config/shell/zshrc"  ;;
-        bash) rc_file="$HOME/.bashrc"; config_file="$HOME/.config/shell/bashrc" ;;
-        *)    warn "Unrecognized shell ($SHELL) — source ~/.config/shell/zshrc (or bashrc) manually."
-              return ;;
+        zsh)
+            rc_file="$HOME/.zshrc"
+            config_file="$HOME/.config/shell/zshrc"
+            ;;
+        bash)
+            rc_file="$HOME/.bashrc"
+            config_file="$HOME/.config/shell/bashrc"
+            ;;
+        *)
+            warn "Unrecognized shell ($SHELL) — source ~/.config/shell/zshrc (or bashrc) manually."
+            return
+            ;;
     esac
 
     local source_line="[ -f \"$config_file\" ] && source \"$config_file\" $SOURCE_TAG"
 
     if [ ! -f "$rc_file" ]; then
-        echo "$source_line" > "$rc_file"
+        echo "$source_line" >"$rc_file"
         ok "Created $rc_file"
     elif ! grep -qF "$SOURCE_TAG" "$rc_file" && ! grep -qF "$LEGACY_SOURCE_TAG" "$rc_file"; then
-        printf "\n%s\n" "$source_line" >> "$rc_file"
+        printf "\n%s\n" "$source_line" >>"$rc_file"
         ok "Appended source line to $rc_file"
     else
         ok "$rc_file already configured"
@@ -1016,8 +1050,8 @@ main() {
 
     for arg in "$@"; do
         case "$arg" in
-            --all)       select_all=true ;;
-            --no-tools)  skip_tools=true ;;
+            --all) select_all=true ;;
+            --no-tools) skip_tools=true ;;
         esac
     done
 

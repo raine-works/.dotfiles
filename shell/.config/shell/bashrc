@@ -12,17 +12,17 @@ fi
 
 # Functions
 fzf-alias-finder() {
-  local result
-  result=$(alias | fzf --no-sort --ansi | cut -d'=' -f1 | sed 's/alias //')
-  if [[ -n "$result" ]]; then
-    history -s "$result"
-    echo "$result"
-  fi
+    local result
+    result=$(alias | fzf --no-sort --ansi | cut -d'=' -f1 | sed 's/alias //')
+    if [[ -n "$result" ]]; then
+        history -s "$result"
+        echo "$result"
+    fi
 }
 
 alias aliases='fzf-alias-finder'
 
 # Prompt (must be last)
 if command -v starship >/dev/null 2>&1; then
-  eval "$(starship init bash)" || echo "Warning: starship init failed" >&2
+    eval "$(starship init bash)" || echo "Warning: starship init failed" >&2
 fi

@@ -26,13 +26,13 @@ kdelp() {
     fi
 
     if [ -r /dev/tty ] && [ -w /dev/tty ]; then
-        read -rp "Delete selected pods? [y/N]: " confirm < /dev/tty
+        read -rp "Delete selected pods? [y/N]: " confirm </dev/tty
     else
         confirm="n"
     fi
 
     case "$confirm" in
-        y|Y|yes|YES) ;;
+        y | Y | yes | YES) ;;
         *)
             echo "Aborted"
             return 0
