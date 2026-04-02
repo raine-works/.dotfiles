@@ -4,7 +4,7 @@
 
 My personal, opinionated development environment — managed with [GNU Stow](https://www.gnu.org/software/stow/) and designed to get a new machine feeling like home in a single command.
 
-> **Fair warning:** These dotfiles reflect *my* workflow and preferences. They ship with specific tool choices (Ghostty, Starship, fzf), a Tokyo Night Storm Starship/VS Code theme direction, rebase-oriented Git defaults, and an alias vocabulary that makes sense to me. Feel free to fork and bend them to your own taste, but don't expect a neutral starting point — this is a setup that works for one person and is shared in the spirit of "steal what's useful."
+> **Fair warning:** These dotfiles reflect *my* workflow and preferences. They ship with specific tool choices (Ghostty, Starship, fzf), a Tokyo Night Starship/VS Code theme direction, rebase-oriented Git defaults, and an alias vocabulary that makes sense to me. Feel free to fork and bend them to your own taste, but don't expect a neutral starting point — this is a setup that works for one person and is shared in the spirit of "steal what's useful."
 
 ## Overview
 
@@ -126,7 +126,7 @@ brew install stow starship fzf
     stow shell        # aliases, exports, PATH, shell rc files
     stow starship     # prompt theme
     stow gitconfig    # git settings + aliases
-    stow vscode       # VS Code base settings (Tokyo Night Storm defaults)
+    stow vscode       # VS Code base settings (Tokyo Night defaults)
     ```
 
     Ghostty config is stowed automatically when selected in the tool picker.
@@ -206,10 +206,10 @@ Key opinions baked in:
 
 Symlinks to `~/.config/starship/starship.toml`.
 
-- **Theme:** Tokyo Night Storm palette
-- **Left prompt:** directory → git branch → input character
-- **Right prompt:** Kubernetes context → Docker context → command duration → time
-- **Prompt character:** green `❯` in insert mode, `[N] >>>` in vi normal mode
+- **Theme:** Tokyo Night palette (configured as `tokyo_night` in the Starship palette block)
+- **Prompt layout:** single segmented prompt line (directory → git branch/status → language runtimes → time), then input character on a new line
+- **Prompt character:** blue icon on success, red icon on error, `[N] >>>` in vi normal mode
+- **Kubernetes module:** enabled with context/namespace display when active
 
 ### VS Code — `vscode/`
 
@@ -217,7 +217,7 @@ Symlinks a base file at `~/Library/Application Support/Code/User/dotfiles.settin
 
 When VS Code is selected in `install.sh`, the installer merges this base file into your local `settings.json` with local values taking precedence. That means editing settings from inside VS Code updates your local file, not this repo.
 
-- **Theme:** `Tokyo Night Storm`
+- **Theme:** `Tokyo Night`
 - **Extension:** `enkia.tokyo-night` (installed automatically when VS Code is selected in the installer)
 
 ## Uninstalling

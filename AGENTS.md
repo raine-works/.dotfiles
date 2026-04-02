@@ -13,7 +13,7 @@ curl -fsSL https://raw.githubusercontent.com/raine-works/.dotfiles/main/setup.sh
 ```
 
 - **Primary platform:** macOS
-- **Theme:** Catppuccin Frappe in Starship prompt configuration
+- **Theme:** Tokyo Night palette in Starship prompt configuration
 - **Package manager:** Homebrew
 - **Config strategy:** mostly symlinks via `stow`; VS Code settings use a stowed base file merged into local settings
 
