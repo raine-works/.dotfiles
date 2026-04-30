@@ -596,6 +596,18 @@ tool_name() {
     echo "$tool_id"
 }
 
+tool_desc() {
+    local tool_id="$1"
+    local i
+    for ((i = 0; i < ${#TOOL_IDS[@]}; i++)); do
+        [[ "${TOOL_IDS[$i]}" == "$tool_id" ]] && {
+            echo "${TOOL_DESCS[$i]}"
+            return
+        }
+    done
+    echo ""
+}
+
 is_tool_detected() {
     case "$1" in
         ghostty) command_exists ghostty ;;
@@ -629,8 +641,21 @@ detect_installed_tools() {
 tool_lineup() {
     local tools=("$@")
     local tool
+    local width=0
+    local name
+
     for tool in "${tools[@]}"; do
-        printf "  - %s\n" "$(tool_name "$tool")"
+        name="$(tool_name "$tool")"
+        if ((${#name} > width)); then
+            width=${#name}
+        fi
+    done
+
+    width=$((width + 2))
+
+    for tool in "${tools[@]}"; do
+        name="$(tool_name "$tool")"
+        printf "  - %-*s %s\n" "$width" "$name" "$(tool_desc "$tool")"
     done
 }
 
@@ -667,6 +692,15 @@ show_menu() {
     local selected=()
     local cursor=0
     local first_draw=true
+    local name_width=0
+
+    local tool_name_len
+    for tool_name_len in "${TOOL_NAMES[@]}"; do
+        if ((${#tool_name_len} > name_width)); then
+            name_width=${#tool_name_len}
+        fi
+    done
+    name_width=$((name_width + 2))
 
     # Pre-select tools already present on the system
     DETECTED_TOOLS=()
@@ -694,7 +728,7 @@ show_menu() {
             local check=" "
             [[ "${selected[$i]}" == true ]] && check="✔"
             local name
-            name=$(printf "%-16s" "${TOOL_NAMES[$i]}")
+            name=$(printf "%-*s" "$name_width" "${TOOL_NAMES[$i]}")
 
             if [[ $i -eq $cursor ]]; then
                 printf "\r\033[K\033[1;36m ❯ [%s] %s %s\033[0m\n" "$check" "$name" "${TOOL_DESCS[$i]}"
@@ -1131,7 +1165,27 @@ uninstall_via_brew() {
 
     if brew list $list_flag "$pkg" >/dev/null 2>&1; then
         info "Uninstalling $pkg via Homebrew..."
-        brew uninstall "${uninstall_flags[@]}" "$pkg" || warn "$pkg uninstall encountered an issue"
+
+        local uninstall_output=""
+        local uninstall_exit=0
+
+        uninstall_output="$(brew uninstall "${uninstall_flags[@]}" "$pkg" 2>&1)"
+        uninstall_exit=$?
+        [ -n "$uninstall_output" ] && printf "%s\n" "$uninstall_output"
+
+        if [ $uninstall_exit -ne 0 ]; then
+            # Homebrew can fail late in cleanup (for example, --zap needing Full Disk Access)
+            # after the main package has already been removed.
+            if ! brew list $list_flag "$pkg" >/dev/null 2>&1; then
+                if printf "%s" "$uninstall_output" | grep -qi "full disk access"; then
+                    warn "$pkg was uninstalled, but some cleanup was skipped due macOS Full Disk Access restrictions"
+                else
+                    warn "$pkg was uninstalled, but Homebrew reported cleanup warnings"
+                fi
+            else
+                warn "$pkg uninstall encountered an issue"
+            fi
+        fi
     fi
 }
 
