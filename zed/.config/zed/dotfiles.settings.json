@@ -8,7 +8,9 @@
   "edit_predictions": {
     "provider": "copilot"
   },
-  "default_model": "auto",
+  "auto_install_extensions": {
+    "tokyo-night": true
+  },
   "inline_completion_provider": "copilot",
   "project_panel": {
     "dock": "left"
@@ -20,7 +22,6 @@
     "dock": "left"
   },
   "agent": {
-    "default_model": "auto",
     "dock": "right",
     "favorite_models": [],
     "model_parameters": []
@@ -37,8 +38,8 @@
   "ui_font_family": "JetBrainsMono Nerd Font",
   "theme": {
     "mode": "system",
-    "light": "One Light",
-    "dark": "One Dark"
+    "light": "Tokyo Night Day",
+    "dark": "Tokyo Night"
   },
   "terminal": {
     "font_family": "JetBrainsMono Nerd Font",

@@ -552,6 +552,7 @@ is_tool_detected() {
         kubernetes) command_exists kubectl ;;
         vscode) vscode_cli_path >/dev/null 2>&1 ;;
         zed) zed_cli_path >/dev/null 2>&1 ;;
+        gh-copilot) command_exists gh ;;
         *) return 1 ;;
     esac
 }
@@ -591,6 +592,7 @@ TOOL_REGISTRY=(
     "kubernetes|Kubernetes|kubectl + kubectx/kubens aliases"
     "vscode|VS Code|Visual Studio Code editor"
     "zed|Zed|High-performance code editor"
+    "gh-copilot|GitHub CLI Copilot|GitHub CLI with Copilot LLM provider for commit messages"
 )
 
 TOOL_IDS=() TOOL_NAMES=() TOOL_DESCS=()
@@ -908,7 +910,8 @@ install_vscode() {
     local installed_now=false
     local vscode_cli
 
-    if vscode_cli="$(vscode_cli_path 2>/dev/null)"; then
+    vscode_cli="$(vscode_cli_path 2>/dev/null || true)"
+    if [ -n "$vscode_cli" ]; then
         ok "VS Code already installed"
     elif command_exists brew; then
         info "Installing VS Code via Homebrew..."
@@ -919,7 +922,8 @@ install_vscode() {
         warn "Install VS Code manually: https://code.visualstudio.com/"
     fi
 
-    if vscode_cli="$(vscode_cli_path 2>/dev/null)"; then
+    vscode_cli="$(vscode_cli_path 2>/dev/null || true)"
+    if [ -n "$vscode_cli" ]; then
         info "Installing Tokyo Night VS Code theme extension..."
         if "$vscode_cli" --install-extension enkia.tokyo-night --force >/dev/null 2>&1; then
             ok "Tokyo Night theme extension installed"
@@ -940,13 +944,35 @@ install_zed() {
     local installed_now=false
     local zed_cli
 
-    if zed_cli="$(zed_cli_path 2>/dev/null)"; then
+    zed_cli="$(zed_cli_path 2>/dev/null || true)"
+    if [ -n "$zed_cli" ]; then
         ok "Zed already installed"
     elif command_exists brew; then
         info "Installing Zed via Homebrew..."
-        brew install --cask zed
-        ok "Zed installed"
-        installed_now=true
+        if brew install --cask zed; then
+            zed_cli="$(zed_cli_path 2>/dev/null || true)"
+            if [ -n "$zed_cli" ]; then
+                ok "Zed installed"
+                installed_now=true
+            elif brew list --cask zed >/dev/null 2>&1; then
+                warn "Homebrew reports Zed installed but no runnable binary was found; attempting reinstall..."
+                if brew reinstall --cask zed; then
+                    zed_cli="$(zed_cli_path 2>/dev/null || true)"
+                    if [ -n "$zed_cli" ]; then
+                        ok "Zed installed"
+                        installed_now=true
+                    else
+                        warn "Zed cask is present, but no executable was found. Open Zed once or run 'brew uninstall --cask zed && brew install --cask zed'."
+                    fi
+                else
+                    warn "Zed reinstall failed"
+                fi
+            else
+                warn "Zed install did not produce a runnable binary"
+            fi
+        else
+            warn "Zed install failed"
+        fi
     else
         warn "Install Zed manually: https://zed.dev"
     fi
@@ -994,6 +1020,7 @@ verify_tool_installed() {
             warn "zed installed but no Zed CLI found — you may need to restart your shell."
             return 0
             ;;
+        gh-copilot) cmd="gh" ;;
         *) return 0 ;;
     esac
     command_exists "$cmd" && return 0
@@ -1015,6 +1042,7 @@ install_tool() {
         kubernetes) install_kubernetes ;;
         vscode) install_vscode ;;
         zed) install_zed ;;
+        gh-copilot) install_gh_copilot ;;
         *) warn "No install handler for tool: $tool" ;;
     esac
 
@@ -1123,7 +1151,8 @@ uninstall_kubernetes() {
 uninstall_vscode() {
     local vscode_cli
     uninstall_via_brew visual-studio-code cask "${1:-false}"
-    if vscode_cli="$(vscode_cli_path 2>/dev/null)"; then
+    vscode_cli="$(vscode_cli_path 2>/dev/null || true)"
+    if [ -n "$vscode_cli" ]; then
         "$vscode_cli" --uninstall-extension enkia.tokyo-night >/dev/null 2>&1 || true
     fi
     if [ -d "$DOTFILES_DIR/vscode" ]; then
@@ -1136,6 +1165,33 @@ uninstall_zed() {
     if [ -d "$DOTFILES_DIR/zed" ]; then
         unstow_package "zed" "Zed base settings unstowed"
     fi
+}
+
+install_gh_copilot() {
+    if command_exists gh; then
+        ok "GitHub CLI already installed"
+    elif command_exists brew; then
+        info "Installing GitHub CLI via Homebrew..."
+        brew install gh
+        ok "GitHub CLI installed"
+    else
+        warn "Install GitHub CLI manually: https://cli.github.com/"
+        return 0
+    fi
+
+    # Configure Copilot LLM provider if gh is available
+    if command_exists gh; then
+        info "Configuring GitHub Copilot LLM provider..."
+        if gh copilot config set llm-provider github >/dev/null 2>&1; then
+            ok "GitHub Copilot LLM provider configured"
+        else
+            warn "Could not auto-configure Copilot LLM provider; run manually: gh copilot config set llm-provider github"
+        fi
+    fi
+}
+
+uninstall_gh_copilot() {
+    uninstall_via_brew gh formula "${1:-false}"
 }
 
 uninstall_tool() {
@@ -1153,6 +1209,7 @@ uninstall_tool() {
         kubernetes) uninstall_kubernetes "$purge" ;;
         vscode) uninstall_vscode "$purge" ;;
         zed) uninstall_zed "$purge" ;;
+        gh-copilot) uninstall_gh_copilot "$purge" ;;
         *) warn "No uninstall handler for tool: $tool" ;;
     esac
 
