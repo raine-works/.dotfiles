@@ -1,2 +1,10 @@
 .DS_Store
 *.local
+
+# Keep tracked base settings in repo, ignore live merged editor settings.
+**/.config/zed/settings.json
+**/Code/User/settings.json
+
+# Zed generated database files
+**/.config/zed/prompts/
+

@@ -2,6 +2,8 @@
 # NVM — Node Version Manager
 export NVM_DIR="$HOME/.nvm"
 
+# Conditionally source NVM from either user-managed install or Homebrew.
+# NVM_DIR is exported unconditionally to allow manual installs via nvm-sh/nvm.
 nvm_script=""
 
 # Prefer the user-managed NVM install path, then fall back to Homebrew.
