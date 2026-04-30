@@ -663,18 +663,18 @@ tool_lineup() {
 # Format: "id|Display Name|Description"
 # Adding a tool: add one entry here + create install_<id>() and uninstall_<id>() functions.
 TOOL_REGISTRY=(
-    "ghostty|Ghostty|GPU-accelerated terminal emulator"
-    "nvm|NVM|Node Version Manager"
     "bun|Bun|JavaScript runtime & bundler"
     "deno|Deno|Secure JavaScript/TypeScript runtime"
-    "golang|Go|Go programming language"
-    "rust|Rust|Rust programming language and Cargo"
-    "python|Python|Python 3 via pyenv version manager"
     "docker|Docker|Docker Desktop for containers"
+    "ghostty|Ghostty|GPU-accelerated terminal emulator"
+    "gh-copilot|GitHub CLI Copilot|GitHub CLI with Copilot integration"
+    "golang|Go|Go programming language"
     "kubernetes|Kubernetes|kubectl + kubectx/kubens aliases"
+    "nvm|NVM|Node Version Manager"
+    "python|Python|Python 3 via pyenv version manager"
+    "rust|Rust|Rust programming language and Cargo"
     "vscode|VS Code|Visual Studio Code editor"
     "zed|Zed|High-performance code editor"
-    "gh-copilot|GitHub CLI Copilot|GitHub CLI with Copilot integration"
 )
 
 TOOL_IDS=() TOOL_NAMES=() TOOL_DESCS=()

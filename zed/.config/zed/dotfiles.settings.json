@@ -26,8 +26,8 @@
     "favorite_models": [],
     "model_parameters": [],
     "commit_message_model": {
-      "provider": "zed.dev",
-      "model": "gpt-5-nano"
+      "provider": "copilot_chat",
+      "model": "gpt-4.1"
     }
   },
   "git_panel": {
