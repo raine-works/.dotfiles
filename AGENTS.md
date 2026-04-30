@@ -9,7 +9,7 @@ This file provides orientation for AI agents and the known-issue backlog for thi
 A personal development environment managed with **GNU Stow**. Designed to provision a new machine in one command:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/raine-works/.dotfiles/main/setup.sh | bash
+curl -fsSL https://raw.githubusercontent.com/raine-works/.dotfiles/master/setup.sh | bash
 ```
 
 - **Primary platform:** macOS
@@ -25,8 +25,10 @@ Each top-level directory is a **Stow package**. The directory tree inside each p
 
 ```
 .dotfiles/
-├── agents.md               ← this file
+├── AGENTS.md               ← this file
 ├── install.sh              ← interactive installer
+├── scripts/
+│   └── smoke-check.sh      ← repository smoke checks
 ├── setup.sh                ← bootstrap (curl | bash entry point)
 ├── README.md
 ├── .gitignore              ← ignores .DS_Store and *.local files
@@ -207,6 +209,9 @@ bash ~/.dotfiles/install.sh --all
 
 # Re-run skipping tool selection (stow + shell config only)
 bash ~/.dotfiles/install.sh --no-tools
+
+# Run the repository smoke checks
+bash ~/.dotfiles/scripts/smoke-check.sh
 ```
 
 ---

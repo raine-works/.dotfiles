@@ -31,7 +31,10 @@ My personal, opinionated development environment — managed with [GNU Stow](htt
 ├── starship/                  # Starship cross-shell prompt theme
 ├── vscode/                    # VS Code base settings (merged into local user settings)
 ├── zed/                        # Zed base settings (merged into local user settings)
+├── AGENTS.md                  # Agent-oriented repo guide and maintenance notes
 ├── install.sh                 # Interactive installer with tool selection
+├── scripts/                   # Repository maintenance helpers
+│   └── smoke-check.sh         # Syntax + stow + installer smoke checks
 └── setup.sh                   # One-liner: clone, install deps, hand off to install.sh
 ```
 
@@ -51,12 +54,13 @@ The setup script will:
 1. On macOS, auto-install **Homebrew** first if it's missing
 2. Install base dependencies — **Git**, **GNU Stow**, **Starship**, and **fzf** — via Homebrew
 3. Clone this repo to `~/.dotfiles` (or pull latest if it already exists)
-4. Hand off to the interactive installer (`install.sh`), which will:
-5. Ensure **GNU Stow** is available (defensive check; installs via Homebrew if needed)
-6. Stow the core packages (`shell`, `starship`, `gitconfig`) into `$HOME`
-7. Inject a single `source` line into your existing `~/.zshrc` or `~/.bashrc` (your current config is never overwritten)
-8. Launch an **interactive tool picker** — choose which dev tools to install and configure (Ghostty, NVM, Bun, Deno, Go, Rust, Python, Docker, Kubernetes, VS Code, Zed)
-9. Prompt you to create a local `~/.gitconfig.local` for your Git identity
+4. Hand off to the interactive installer (`install.sh`), which then:
+   - ensures **GNU Stow** is available (defensive check; installs via Homebrew if needed)
+   - stows the core packages (`shell`, `starship`, `gitconfig`) into `$HOME`
+   - backs up conflicting files to `~/.dotfiles-backups/` before `stow --restow`, with an interactive restore prompt if stowing fails
+   - injects a single `source` line into your existing `~/.zshrc` or `~/.bashrc` (your current config is never overwritten)
+   - launches an **interactive tool picker** for Ghostty, NVM, Bun, Deno, Go, Rust, Python, Docker, Kubernetes, VS Code, Zed, and GitHub CLI Copilot
+   - prompts you to create a local `~/.gitconfig.local` for your Git identity
 
 ## Manual Installation
 
@@ -71,7 +75,7 @@ The setup script will:
 
 ```bash
 # macOS
-brew install stow starship fzf
+brew install git stow starship fzf
 ```
 
 ### Steps
@@ -93,20 +97,21 @@ brew install stow starship fzf
 
     The menu uses arrow keys to navigate, spacebar to toggle, and enter to confirm. Tools already detected on your system are pre-selected:
 
+        ```text
+         ❯ [ ] Ghostty            GPU-accelerated terminal emulator
+           [✔] NVM                Node Version Manager
+           [✔] Bun                JavaScript runtime & bundler
+           [ ] Deno               Secure JavaScript/TypeScript runtime
+           [ ] Go                 Go programming language
+           [ ] Rust               Rust programming language and Cargo
+           [ ] Python             Python 3 via pyenv version manager
+           [ ] Docker             Docker Desktop for containers
+           [ ] Kubernetes         kubectl + kubectx/kubens aliases
+           [ ] VS Code            Visual Studio Code editor
+           [ ] Zed                High-performance code editor
+           [ ] GitHub CLI Copilot GitHub CLI with Copilot integration
+           ↑/↓ navigate · space toggle · enter confirm
         ```
-     ❯ [ ] Ghostty          GPU-accelerated terminal emulator
-       [✔] NVM              Node Version Manager
-       [✔] Bun              JavaScript runtime & bundler
-       [ ] Deno             Secure JavaScript/TypeScript runtime
-         [ ] Go               Go programming language
-         [ ] Rust             Rust programming language and Cargo
-       [ ] Python           Python 3 via pyenv version manager
-       [ ] Docker           Docker Desktop for containers
-       [ ] Kubernetes       kubectl + kubectx/kubens aliases
-       [ ] VS Code          Visual Studio Code editor
-       [ ] Zed              High-performance code editor
-       ↑/↓ navigate · space toggle · enter confirm
-    ```
 
         If you deselect a tool that is currently installed, the installer offers to remove it (and its managed data/config where applicable). It also asks whether to run a deeper package-manager purge when supported.
 
@@ -126,6 +131,7 @@ brew install stow starship fzf
     - [ ] Kubernetes — kubectl + kubectx/kubens aliases
     - [ ] VS Code — Visual Studio Code editor
     - [ ] Zed — High-performance code editor
+    - [ ] GitHub CLI Copilot — GitHub CLI with Copilot integration
 
     Or stow individual packages manually if you only want parts of the config:
 
@@ -134,9 +140,10 @@ brew install stow starship fzf
     stow starship     # prompt theme
     stow gitconfig    # git settings + aliases
     stow vscode       # VS Code base settings (Tokyo Night defaults)
+    stow zed          # Zed base settings
     ```
 
-    Ghostty config is stowed automatically when selected in the tool picker.
+Ghostty config is stowed automatically when selected in the tool picker. For **VS Code** and **Zed**, prefer `./install.sh` over manual `stow`: the installer migrates older symlinked settings directories if needed, cleans up any leaked local editor settings from the dotfiles package, then merges the tracked base file into your live `settings.json` so editor-written settings stay local.
 
 3. The installer will also prompt you to **create your local Git identity** (not tracked by this repo). You can skip this and create it manually later:
 
@@ -231,11 +238,15 @@ When VS Code is selected in `install.sh`, the installer merges this base file in
 
 Symlinks a base file at `~/.config/zed/dotfiles.settings.json`.
 
-When Zed is selected in `install.sh`, the installer merges this base file into your local `settings.json` with local values taking precedence. That means editing settings from inside Zed updates your local file, not this repo.
+When Zed is selected in `install.sh`, the installer first makes sure `~/.config/zed` is a real local directory, then merges this base file into your local `settings.json` with local values taking precedence. That means editing settings from inside Zed updates your local file, not this repo.
 
 - **Font:** JetBrainsMono Nerd Font (buffer: 15pt, UI: 16pt, terminal: 15pt)
 - **Panels:** Docks configured (left: project/outline/git/collaboration, right: agent)
-- **Features:** GitHub Copilot CLI integration enabled
+- **Features:** Copilot completions enabled; Git commit messages use Zed's Agent model configuration via `agent.commit_message_model`
+
+### Scripts — `scripts/`
+
+- `smoke-check.sh` — runs the repository's existing syntax, stow simulation, and non-interactive installer smoke checks
 
 ## Uninstalling
 
@@ -251,9 +262,9 @@ stow -D vscode
 stow -D zed
 ```
 
-This deletes only the symlinks — your original files are untouched. You may also want to remove the `# dotfiles-managed` source line from your `~/.zshrc` or `~/.bashrc`.
+This deletes only the symlinks — your original files are untouched. You may also want to remove the `# dotfiles-managed:raine-works` source line from your `~/.zshrc` or `~/.bashrc`.
 
-For development tools (Ghostty, NVM, Bun, Deno, Python/pyenv, Docker, Kubernetes, VS Code, Zed), the easiest path is to rerun `./install.sh` and deselect the tools you want removed. The script will prompt you before uninstalling anything.
+For development tools (Ghostty, NVM, Bun, Deno, Python/pyenv, Docker, Kubernetes, VS Code, Zed, and GitHub CLI Copilot), the easiest path is to rerun `./install.sh` and deselect the tools you want removed. The script will prompt you before uninstalling anything.
 
 ## License
 

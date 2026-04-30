@@ -38,6 +38,63 @@ vscode_user_settings_dir() {
     echo "$HOME/Library/Application Support/Code/User"
 }
 
+ensure_local_settings_dir() {
+    local settings_dir="$1"
+    local label="$2"
+    local resolved_dir temp_dir
+
+    mkdir -p "$(dirname "$settings_dir")"
+
+    if [ ! -L "$settings_dir" ]; then
+        mkdir -p "$settings_dir"
+        return 0
+    fi
+
+    resolved_dir="$(cd "$settings_dir" 2>/dev/null && pwd -P || true)"
+    case "$resolved_dir" in
+        "$DOTFILES_DIR"/*) ;;
+        *)
+            warn "$label settings directory is symlinked outside dotfiles; leaving it as-is"
+            return 0
+            ;;
+    esac
+
+    temp_dir="$(mktemp -d "${TMPDIR:-/tmp}/dotfiles-settings.XXXXXX")" || fail "Failed to create temporary directory"
+
+    if ! cp -R "$settings_dir"/. "$temp_dir"/ 2>/dev/null; then
+        rm -rf "$temp_dir"
+        fail "Failed to copy existing $label settings"
+    fi
+
+    rm -f "$settings_dir" || {
+        rm -rf "$temp_dir"
+        fail "Failed to remove symlinked $label settings directory"
+    }
+    mkdir -p "$settings_dir" || {
+        rm -rf "$temp_dir"
+        fail "Failed to create local $label settings directory"
+    }
+
+    if ! cp -R "$temp_dir"/. "$settings_dir"/ 2>/dev/null; then
+        rm -rf "$temp_dir"
+        fail "Failed to restore existing $label settings"
+    fi
+    rm -rf "$temp_dir"
+
+    rm -f "$settings_dir/dotfiles.settings.json"
+    ok "Migrated $label settings directory to a local folder"
+}
+
+remove_stale_package_settings() {
+    local package_settings_file="$1"
+    local label="$2"
+
+    if [ -f "$package_settings_file" ]; then
+        rm -f "$package_settings_file" || fail "Failed to remove stale $label settings from dotfiles package"
+        ok "Removed stale $label settings from dotfiles package"
+    fi
+}
+
 vscode_merge_settings() {
     local settings_dir settings_file base_file
     settings_dir="$(vscode_user_settings_dir)"
@@ -592,7 +649,7 @@ TOOL_REGISTRY=(
     "kubernetes|Kubernetes|kubectl + kubectx/kubens aliases"
     "vscode|VS Code|Visual Studio Code editor"
     "zed|Zed|High-performance code editor"
-    "gh-copilot|GitHub CLI Copilot|GitHub CLI with Copilot LLM provider for commit messages"
+    "gh-copilot|GitHub CLI Copilot|GitHub CLI with Copilot integration"
 )
 
 TOOL_IDS=() TOOL_NAMES=() TOOL_DESCS=()
@@ -924,6 +981,8 @@ install_vscode() {
 
     vscode_cli="$(vscode_cli_path 2>/dev/null || true)"
     if [ -n "$vscode_cli" ]; then
+        ensure_local_settings_dir "$(vscode_user_settings_dir)" "VS Code"
+        remove_stale_package_settings "$DOTFILES_DIR/vscode/Library/Application Support/Code/User/settings.json" "VS Code"
         info "Installing Tokyo Night VS Code theme extension..."
         if "$vscode_cli" --install-extension enkia.tokyo-night --force >/dev/null 2>&1; then
             ok "Tokyo Night theme extension installed"
@@ -978,6 +1037,8 @@ install_zed() {
     fi
 
     if [ -d "$DOTFILES_DIR/zed" ]; then
+        ensure_local_settings_dir "$(zed_user_settings_dir)" "Zed"
+        remove_stale_package_settings "$DOTFILES_DIR/zed/.config/zed/settings.json" "Zed"
         restow_package "zed" "Zed base settings stowed"
         zed_merge_settings
     fi
@@ -1177,16 +1238,6 @@ install_gh_copilot() {
     else
         warn "Install GitHub CLI manually: https://cli.github.com/"
         return 0
-    fi
-
-    # Configure Copilot LLM provider if gh is available
-    if command_exists gh; then
-        info "Configuring GitHub Copilot LLM provider..."
-        if gh copilot config set llm-provider github >/dev/null 2>&1; then
-            ok "GitHub Copilot LLM provider configured"
-        else
-            warn "Could not auto-configure Copilot LLM provider; run manually: gh copilot config set llm-provider github"
-        fi
     fi
 }
 
