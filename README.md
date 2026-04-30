@@ -30,11 +30,12 @@ My personal, opinionated development environment — managed with [GNU Stow](htt
 │       └── bashrc              # Bash-specific config
 ├── starship/                  # Starship cross-shell prompt theme
 ├── vscode/                    # VS Code base settings (merged into local user settings)
+├── zed/                        # Zed base settings (merged into local user settings)
 ├── install.sh                 # Interactive installer with tool selection
 └── setup.sh                   # One-liner: clone, install deps, hand off to install.sh
 ```
 
-Each top-level directory is a **Stow package** — running `stow <package>` symlinks its contents into the corresponding location under `$HOME`. Most files are symlinked only; the VS Code installer intentionally merges a tracked base config into your local `settings.json` so local edits stay out of this repo.
+Each top-level directory is a **Stow package** — running `stow <package>` symlinks its contents into the corresponding location under `$HOME`. Most files are symlinked only; the VS Code and Zed installers intentionally merge tracked base configs into your local settings files so local edits stay out of this repo.
 
 ## Quick Start
 
@@ -54,7 +55,7 @@ The setup script will:
 5. Ensure **GNU Stow** is available (defensive check; installs via Homebrew if needed)
 6. Stow the core packages (`shell`, `starship`, `gitconfig`) into `$HOME`
 7. Inject a single `source` line into your existing `~/.zshrc` or `~/.bashrc` (your current config is never overwritten)
-8. Launch an **interactive tool picker** — choose which dev tools to install and configure (Ghostty, NVM, Bun, Deno, Go, Rust, Python, Docker, Kubernetes, VS Code)
+8. Launch an **interactive tool picker** — choose which dev tools to install and configure (Ghostty, NVM, Bun, Deno, Go, Rust, Python, Docker, Kubernetes, VS Code, Zed)
 9. Prompt you to create a local `~/.gitconfig.local` for your Git identity
 
 ## Manual Installation
@@ -103,6 +104,7 @@ brew install stow starship fzf
        [ ] Docker           Docker Desktop for containers
        [ ] Kubernetes       kubectl + kubectx/kubens aliases
        [ ] VS Code          Visual Studio Code editor
+       [ ] Zed              High-performance code editor
        ↑/↓ navigate · space toggle · enter confirm
     ```
 
@@ -123,6 +125,7 @@ brew install stow starship fzf
     - [ ] Docker — Docker Desktop for containers
     - [ ] Kubernetes — kubectl + kubectx/kubens aliases
     - [ ] VS Code — Visual Studio Code editor
+    - [ ] Zed — High-performance code editor
 
     Or stow individual packages manually if you only want parts of the config:
 
@@ -224,6 +227,16 @@ When VS Code is selected in `install.sh`, the installer merges this base file in
 - **Theme:** `Tokyo Night`
 - **Extension:** `enkia.tokyo-night` (installed automatically when VS Code is selected in the installer)
 
+### Zed — `zed/`
+
+Symlinks a base file at `~/.config/zed/dotfiles.settings.json`.
+
+When Zed is selected in `install.sh`, the installer merges this base file into your local `settings.json` with local values taking precedence. That means editing settings from inside Zed updates your local file, not this repo.
+
+- **Font:** JetBrainsMono Nerd Font (buffer: 15pt, UI: 16pt, terminal: 15pt)
+- **Panels:** Docks configured (left: project/outline/git/collaboration, right: agent)
+- **Features:** GitHub Copilot CLI integration enabled
+
 ## Uninstalling
 
 To remove core dotfile packages, unstow them:
@@ -235,11 +248,12 @@ stow -D ghostty
 stow -D starship
 stow -D gitconfig
 stow -D vscode
+stow -D zed
 ```
 
 This deletes only the symlinks — your original files are untouched. You may also want to remove the `# dotfiles-managed` source line from your `~/.zshrc` or `~/.bashrc`.
 
-For development tools (Ghostty, NVM, Bun, Deno, Python/pyenv, Docker, Kubernetes, VS Code), the easiest path is to rerun `./install.sh` and deselect the tools you want removed. The script will prompt you before uninstalling anything.
+For development tools (Ghostty, NVM, Bun, Deno, Python/pyenv, Docker, Kubernetes, VS Code, Zed), the easiest path is to rerun `./install.sh` and deselect the tools you want removed. The script will prompt you before uninstalling anything.
 
 ## License
 

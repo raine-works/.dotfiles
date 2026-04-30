@@ -210,6 +210,104 @@ PY
     fi
 }
 
+zed_cli_path() {
+    local zed_bin
+    zed_bin="$(command -v zed 2>/dev/null || true)"
+    if [ -n "$zed_bin" ]; then
+        echo "$zed_bin"
+        return 0
+    fi
+
+    local macos_zed_bin="/Applications/Zed.app/Contents/MacOS/zed"
+    if [ -x "$macos_zed_bin" ]; then
+        echo "$macos_zed_bin"
+        return 0
+    fi
+
+    return 1
+}
+
+zed_user_settings_dir() {
+    echo "$HOME/.config/zed"
+}
+
+zed_merge_settings() {
+    local settings_dir settings_file base_file
+    settings_dir="$(zed_user_settings_dir)"
+    settings_file="$settings_dir/settings.json"
+    base_file="$settings_dir/dotfiles.settings.json"
+
+    mkdir -p "$settings_dir"
+
+    if [ -L "$settings_file" ]; then
+        rm -f "$settings_file"
+    fi
+
+    if [ ! -f "$base_file" ]; then
+        warn "Zed base settings not found at $base_file; skipping settings merge"
+        return 0
+    fi
+
+    if command_exists python3; then
+        local merge_error
+        if merge_error="$(
+            python3 - "$base_file" "$settings_file" 2>&1 <<'PY'
+import json
+import os
+import sys
+
+base_path, settings_path = sys.argv[1], sys.argv[2]
+
+def load_json(path, required=False):
+    if not os.path.exists(path):
+        if required:
+            raise FileNotFoundError(path)
+        return {}
+    with open(path, 'r', encoding='utf-8') as f:
+        raw = f.read()
+    if not raw.strip():
+        return {}
+    return json.loads(raw)
+
+def deep_merge(base, override):
+    if not isinstance(base, dict) or not isinstance(override, dict):
+        return override
+    merged = dict(base)
+    for key, value in override.items():
+        if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
+            merged[key] = deep_merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+base = load_json(base_path, required=True)
+current = load_json(settings_path, required=False)
+
+if not isinstance(base, dict):
+    raise ValueError('Base Zed settings must be a JSON object')
+if not isinstance(current, dict):
+    raise ValueError('Existing Zed settings must be a JSON object')
+
+merged = deep_merge(base, current)
+
+with open(settings_path, 'w', encoding='utf-8') as f:
+    json.dump(merged, f, indent=2)
+    f.write('\n')
+PY
+        )"; then
+            ok "Zed settings merged (dotfiles base + local overrides)"
+        else
+            warn "Failed to merge Zed settings; leaving existing settings untouched"
+            [ -n "$merge_error" ] && warn "Zed merge error: $merge_error"
+        fi
+    elif [ ! -f "$settings_file" ]; then
+        cp "$base_file" "$settings_file"
+        ok "Created Zed settings.json from dotfiles base"
+    else
+        warn "python3 not found; skipped Zed settings merge"
+    fi
+}
+
 rust_toolchain_detected() {
     command_exists rustc && return 0
     command_exists cargo && return 0
@@ -453,6 +551,7 @@ is_tool_detected() {
         docker) command_exists docker ;;
         kubernetes) command_exists kubectl ;;
         vscode) vscode_cli_path >/dev/null 2>&1 ;;
+        zed) zed_cli_path >/dev/null 2>&1 ;;
         *) return 1 ;;
     esac
 }
@@ -491,6 +590,7 @@ TOOL_REGISTRY=(
     "docker|Docker|Docker Desktop for containers"
     "kubernetes|Kubernetes|kubectl + kubectx/kubens aliases"
     "vscode|VS Code|Visual Studio Code editor"
+    "zed|Zed|High-performance code editor"
 )
 
 TOOL_IDS=() TOOL_NAMES=() TOOL_DESCS=()
@@ -836,6 +936,27 @@ install_vscode() {
     fi
 }
 
+install_zed() {
+    local installed_now=false
+    local zed_cli
+
+    if zed_cli="$(zed_cli_path 2>/dev/null)"; then
+        ok "Zed already installed"
+    elif command_exists brew; then
+        info "Installing Zed via Homebrew..."
+        brew install --cask zed
+        ok "Zed installed"
+        installed_now=true
+    else
+        warn "Install Zed manually: https://zed.dev"
+    fi
+
+    if [ -d "$DOTFILES_DIR/zed" ]; then
+        restow_package "zed" "Zed base settings stowed"
+        zed_merge_settings
+    fi
+}
+
 verify_tool_installed() {
     local tool="$1"
     local cmd
@@ -866,6 +987,13 @@ verify_tool_installed() {
             warn "vscode installed but no VS Code CLI found — open VS Code and install the 'code' shell command."
             return 0
             ;;
+        zed)
+            if zed_cli_path >/dev/null 2>&1; then
+                return 0
+            fi
+            warn "zed installed but no Zed CLI found — you may need to restart your shell."
+            return 0
+            ;;
         *) return 0 ;;
     esac
     command_exists "$cmd" && return 0
@@ -886,6 +1014,7 @@ install_tool() {
         docker) install_docker ;;
         kubernetes) install_kubernetes ;;
         vscode) install_vscode ;;
+        zed) install_zed ;;
         *) warn "No install handler for tool: $tool" ;;
     esac
 
@@ -1002,6 +1131,13 @@ uninstall_vscode() {
     fi
 }
 
+uninstall_zed() {
+    uninstall_via_brew zed cask "${1:-false}"
+    if [ -d "$DOTFILES_DIR/zed" ]; then
+        unstow_package "zed" "Zed base settings unstowed"
+    fi
+}
+
 uninstall_tool() {
     local tool="$1"
     local purge="$2"
@@ -1016,6 +1152,7 @@ uninstall_tool() {
         docker) uninstall_docker "$purge" ;;
         kubernetes) uninstall_kubernetes "$purge" ;;
         vscode) uninstall_vscode "$purge" ;;
+        zed) uninstall_zed "$purge" ;;
         *) warn "No uninstall handler for tool: $tool" ;;
     esac
 

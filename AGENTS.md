@@ -15,7 +15,7 @@ curl -fsSL https://raw.githubusercontent.com/raine-works/.dotfiles/main/setup.sh
 - **Primary platform:** macOS
 - **Theme:** Tokyo Night palette in Starship prompt configuration
 - **Package manager:** Homebrew
-- **Config strategy:** mostly symlinks via `stow`; VS Code settings use a stowed base file merged into local settings
+- **Config strategy:** mostly symlinks via `stow`; VS Code and Zed settings use stowed base files merged into local settings
 
 ---
 
@@ -52,8 +52,16 @@ Each top-level directory is a **Stow package**. The directory tree inside each p
 ├── gitconfig/              ← stow package: Git config
 │   └── .gitconfig
 │
-└── ghostty/                ← stow package: Ghostty terminal config
-    └── .config/ghostty/config
+├── ghostty/                ← stow package: Ghostty terminal config
+│   └── .config/ghostty/config
+│
+├── vscode/                 ← stow package: VS Code settings (merged)
+│   └── Library/Application Support/Code/User/
+│       └── dotfiles.settings.json
+│
+└── zed/                    ← stow package: Zed settings (merged)
+    └── .config/zed/
+        └── dotfiles.settings.json
 ```
 
 **Stow command used throughout:**
@@ -166,6 +174,16 @@ No array sync needed — `TOOL_IDS`, `TOOL_NAMES`, `TOOL_DESCS` are derived auto
 ### Git identity
 
 Stored in `~/.gitconfig.local` (git-ignored, user-local). The stowed `.gitconfig` includes it via `[include] path = ~/.gitconfig.local`.
+
+### Editor settings merge (VS Code & Zed)
+
+Both VS Code and Zed use a **base file + local merge** pattern:
+- **Base file** (tracked): `dotfiles.settings.json` (stowed into respective config directories)
+- **Local file** (user-edited, not tracked): `settings.json` 
+- **Merge strategy**: Base settings + user overrides (user values always win)
+- **Merge logic**: Deep merge via Python in `install.sh` called by `vscode_merge_settings()` and `zed_merge_settings()`
+
+This allows you to edit settings in the editor without those changes bleeding into the repo.
 
 ---
 
