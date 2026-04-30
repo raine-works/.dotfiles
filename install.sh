@@ -50,7 +50,11 @@ ensure_local_settings_dir() {
         return 0
     fi
 
-    resolved_dir="$(cd "$settings_dir" 2>/dev/null && pwd -P || true)"
+    if resolved_dir="$(cd "$settings_dir" 2>/dev/null && pwd -P)"; then
+        :
+    else
+        resolved_dir=""
+    fi
     case "$resolved_dir" in
         "$DOTFILES_DIR"/*) ;;
         *)
