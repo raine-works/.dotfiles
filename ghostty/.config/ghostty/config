@@ -9,3 +9,4 @@ window-padding-balance = true
 macos-option-as-alt = true
 background-opacity = 0.8
 background-blur-radius = 50
+shell-integration-features = ssh-terminfo,ssh-env
