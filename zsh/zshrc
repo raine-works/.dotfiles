@@ -1,6 +1,12 @@
 # Managed zsh config, sourced from the first line of ~/.zshrc.
 # Don't edit this file for personal changes: put them in ~/.zshrc below that line.
 
+# Sourced from another shell (e.g. `source ~/.zshrc` in bash)? Stop before any zsh syntax.
+if [ -z "$ZSH_VERSION" ]; then
+    echo "This config needs zsh. Run: exec zsh" >&2
+    return 0 2>/dev/null || exit 0
+fi
+
 ZSH_CONFIG_DIR="${${(%):-%x}:A:h}"
 DOTFILES_DIR="${ZSH_CONFIG_DIR:h}"
 

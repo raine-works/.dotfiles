@@ -191,5 +191,25 @@ linux_set_login_shell() {
         skip "zsh is already the login shell"
         return 0
     fi
-    as_root chsh -s "$zsh_path" "$USER" && ok "Login shell set to zsh"
+    if as_root chsh -s "$zsh_path" "$USER" 2>/dev/null; then
+        ok "Login shell set to zsh (takes effect at next login)"
+    else
+        # Directory-managed accounts (Google Cloud OS Login, LDAP, AD) aren't in
+        # /etc/passwd, so chsh can't touch them. Hand off from bash instead.
+        hook_bashrc_to_zsh
+    fi
+}
+
+# Interactive bash sessions switch to zsh. Non-interactive ones (scp, rsync,
+# remote commands) stay in bash.
+hook_bashrc_to_zsh() {
+    local rc="$HOME/.bashrc" line
+    # shellcheck disable=SC2016 # expands later, in the user's bash
+    line='case $- in *i*) [ -z "$ZSH_VERSION" ] && command -v zsh >/dev/null && exec zsh -l ;; esac # dotfiles-managed'
+    touch "$rc"
+    {
+        grep -v '# dotfiles-managed' "$rc" || true
+        echo "$line"
+    } >"$rc.tmp" && mv "$rc.tmp" "$rc"
+    ok "Login shell can't be changed here; ~/.bashrc now hands interactive shells to zsh"
 }
