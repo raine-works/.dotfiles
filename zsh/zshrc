@@ -1,0 +1,83 @@
+# Managed zsh config, sourced from the first line of ~/.zshrc.
+# Don't edit this file for personal changes: put them in ~/.zshrc below that line.
+
+ZSH_CONFIG_DIR="${${(%):-%x}:A:h}"
+DOTFILES_DIR="${ZSH_CONFIG_DIR:h}"
+
+# Your own ~/.config/starship.toml wins; otherwise use the managed prompt.
+[[ -f $HOME/.config/starship.toml ]] || export STARSHIP_CONFIG="$DOTFILES_DIR/starship/starship.toml"
+
+# ── Environment ──────────────────────────────────────────
+typeset -U path fpath
+if [[ -z $HOMEBREW_PREFIX ]]; then
+  for _brew in /opt/homebrew/bin/brew /usr/local/bin/brew /home/linuxbrew/.linuxbrew/bin/brew; do
+    [[ -x $_brew ]] && { eval "$($_brew shellenv)"; break; }
+  done
+  unset _brew
+fi
+path=("$HOME/.local/bin" $path)
+fpath=("$HOME/.local/share/zsh/site-functions" $fpath)
+
+export LANG="${LANG:-C.UTF-8}"
+export PAGER=less LESS='-FRX'
+if (( $+commands[zed] )) && [[ -z $SSH_CONNECTION ]]; then
+  export EDITOR='zed --wait'
+else
+  export EDITOR=vim
+fi
+export VISUAL="$EDITOR"
+
+# ── History & options ────────────────────────────────────
+HISTFILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/history"
+[[ -d ${HISTFILE:h} ]] || mkdir -p "${HISTFILE:h}"
+HISTSIZE=100000
+SAVEHIST=100000
+setopt extended_history share_history hist_ignore_all_dups hist_ignore_space hist_reduce_blanks hist_verify
+setopt auto_cd auto_pushd pushd_ignore_dups pushd_silent
+setopt interactive_comments no_beep
+bindkey -e
+bindkey '^[[A' history-beginning-search-backward
+bindkey '^[[B' history-beginning-search-forward
+
+# ── Tools ────────────────────────────────────────────────
+# Each file checks for its tool and returns early when it isn't installed.
+for _tool in "$ZSH_CONFIG_DIR"/tools/*.zsh(N); do
+  source "$_tool"
+done
+unset _tool
+
+# ── Completion ───────────────────────────────────────────
+# Rebuild the completion cache at most once a day.
+autoload -Uz compinit
+_zcompdump="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcompdump"
+[[ -d ${_zcompdump:h} ]] || mkdir -p "${_zcompdump:h}"
+_stale=($_zcompdump(N.mh+24))
+if [[ ! -f $_zcompdump || -n $_stale ]]; then
+  compinit -d "$_zcompdump"
+else
+  compinit -C -d "$_zcompdump"
+fi
+unset _zcompdump _stale
+
+zstyle ':completion:*' matcher-list 'm:{a-z}={A-Za-z}'
+zstyle ':completion:*' menu select
+zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
+zstyle ':completion:*:descriptions' format '%F{yellow}── %d ──%f'
+
+(( $+commands[fzf] )) && source <(fzf --zsh)
+(( $+commands[zoxide] )) && eval "$(zoxide init zsh --cmd cd)"
+
+source "$ZSH_CONFIG_DIR/aliases.zsh"
+
+# ── Plugins ──────────────────────────────────────────────
+# Installed by Homebrew or apt; syntax highlighting must load last.
+for _plugin in zsh-autosuggestions/zsh-autosuggestions.zsh zsh-syntax-highlighting/zsh-syntax-highlighting.zsh; do
+  for _dir in "${HOMEBREW_PREFIX:-/nonexistent}/share" /usr/share; do
+    [[ -r $_dir/$_plugin ]] && { source "$_dir/$_plugin"; break; }
+  done
+done
+unset _plugin _dir
+ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=#727169'
+
+# ── Prompt ───────────────────────────────────────────────
+(( $+commands[starship] )) && eval "$(starship init zsh)"

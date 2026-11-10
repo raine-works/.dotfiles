@@ -1,66 +1,66 @@
 #!/usr/bin/env bash
+# Fast checks that need no network: syntax, lint, config parsing, and that
+# wiring up configs leaves the repo untouched.
 set -Eeuo pipefail
 
-ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TMP_HOME="$(mktemp -d)"
+trap 'rm -rf "$TMP_HOME"' EXIT
+cd "$ROOT"
 
-cleanup() {
-    rm -rf "$TMP_HOME"
-}
-trap cleanup EXIT
+step() { printf '\n== %s\n' "$*"; }
 
-require_cmd() {
-    command -v "$1" >/dev/null 2>&1 || {
-        echo "Missing required command: $1" >&2
-        exit 1
-    }
-}
+step "bash syntax"
+for f in install.sh setup.sh lib/*.sh scripts/*.sh; do bash -n "$f"; done
 
-require_cmd bash
-require_cmd zsh
-require_cmd stow
+step "zsh syntax"
+for f in zsh/zshrc zsh/*.zsh zsh/tools/*.zsh; do zsh -n "$f"; done
 
-echo "[1/5] Syntax checks"
-bash -n "$ROOT_DIR/install.sh"
-bash -n "$ROOT_DIR/setup.sh"
-bash -n "$ROOT_DIR/shell/.config/shell/shelldefs"
-bash -n "$ROOT_DIR/shell/.config/shell/bashrc"
-for file in "$ROOT_DIR"/shell/.config/shell/tools/*.sh; do
-    bash -n "$file"
+if command -v shellcheck >/dev/null; then
+    step "shellcheck"
+    shellcheck -x install.sh setup.sh lib/*.sh scripts/*.sh
+fi
+
+if command -v shfmt >/dev/null; then
+    step "shfmt"
+    shfmt -i 4 -ci -d install.sh setup.sh lib/*.sh scripts/*.sh
+fi
+
+step "config parsing"
+git config -f git/config --list >/dev/null
+python3 -c 'import json, sys; json.load(open(sys.argv[1]))' zed/settings.json
+python3 -c 'import sys, tomllib; tomllib.load(open(sys.argv[1], "rb"))' starship/starship.toml
+
+step "Zed merge keeps local values and forces disable_ai"
+mkdir -p "$TMP_HOME/.config/zed"
+printf '{\n  // comment\n  "disable_ai": false,\n  "ui_font_size": 20,\n}\n' >"$TMP_HOME/.config/zed/settings.json"
+python3 lib/merge_jsonc.py zed/settings.json "$TMP_HOME/.config/zed/settings.json" disable_ai
+python3 - "$TMP_HOME/.config/zed/settings.json" <<'PY'
+import json, sys
+s = json.load(open(sys.argv[1]))
+assert s["disable_ai"] is True and s["ui_font_size"] == 20 and "theme" in s, s
+PY
+
+step "config wiring in a scratch HOME (twice), repo stays clean"
+before="$(git status --porcelain)"
+printf 'alias mine=true\n' >"$TMP_HOME/.zshrc"
+printf '[user]\n\tname = Someone\n' >"$TMP_HOME/.gitconfig"
+printf 'font-size = 12\n' >"$TMP_HOME/.config/ghostty-seed"
+mkdir -p "$TMP_HOME/.config/ghostty" && mv "$TMP_HOME/.config/ghostty-seed" "$TMP_HOME/.config/ghostty/config"
+for _ in 1 2; do
+    HOME="$TMP_HOME" DOTFILES_DIR="$ROOT" bash -c '
+        set -Eeo pipefail
+        . lib/common.sh
+        . lib/tools.sh
+        link_configs desktop >/dev/null'
 done
-zsh -n "$ROOT_DIR/shell/.config/shell/zshrc"
+[ "$(grep -c 'dotfiles-managed' "$TMP_HOME/.zshrc")" -eq 1 ]
+grep -qx 'alias mine=true' "$TMP_HOME/.zshrc"
+[ "$(HOME="$TMP_HOME" git config --global user.name)" = Someone ]
+[ "$(HOME="$TMP_HOME" git config --global --includes init.defaultBranch)" = master ]
+grep -qx 'font-size = 12' "$TMP_HOME/.config/ghostty/config.local"
+[ -f "$TMP_HOME/.config/git/ignore" ]
+[ -z "$(find "$TMP_HOME" -type l)" ]
+[ "$(git status --porcelain)" = "$before" ]
 
-echo "[2/5] Stow simulation checks"
-stow -n --simulate -d "$ROOT_DIR" -t "$TMP_HOME" shell
-stow -n --simulate -d "$ROOT_DIR" -t "$TMP_HOME" starship
-stow -n --simulate -d "$ROOT_DIR" -t "$TMP_HOME" gitconfig
-stow -n --simulate -d "$ROOT_DIR" -t "$TMP_HOME" ghostty
-
-echo "[3/5] Non-interactive installer run (--no-tools)"
-(
-    cd "$ROOT_DIR"
-    DOTFILES_NONINTERACTIVE=1 HOME="$TMP_HOME" SHELL="/bin/bash" TERM=dumb bash ./install.sh --no-tools >/dev/null
-)
-
-echo "[4/5] Source-line idempotency check"
-if [ -f "$TMP_HOME/.bashrc" ]; then
-    count="$(grep -c "dotfiles-managed:raine-works" "$TMP_HOME/.bashrc" || true)"
-    if [ "$count" -ne 1 ]; then
-        echo "Expected exactly one managed source line in .bashrc, found: $count" >&2
-        exit 1
-    fi
-fi
-
-(
-    cd "$ROOT_DIR"
-    DOTFILES_NONINTERACTIVE=1 HOME="$TMP_HOME" SHELL="/bin/bash" TERM=dumb bash ./install.sh --no-tools >/dev/null
-)
-
-count="$(grep -c "dotfiles-managed:raine-works" "$TMP_HOME/.bashrc" || true)"
-if [ "$count" -ne 1 ]; then
-    echo "Managed source line is not idempotent in .bashrc (count=$count)" >&2
-    exit 1
-fi
-
-echo "[5/5] Completed"
-echo "Smoke checks passed"
+printf '\nAll checks passed.\n'

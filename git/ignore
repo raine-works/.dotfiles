@@ -1,0 +1,18 @@
+# Global ignores, copied to ~/.config/git/ignore on first install (then yours to edit)
+
+# macOS
+.DS_Store
+._*
+
+# Editors
+.idea/
+*.swp
+*~
+
+# Local env and secrets
+.env
+.env.*
+!.env.example
+
+# direnv
+.direnv/

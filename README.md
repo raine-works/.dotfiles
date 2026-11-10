@@ -1,271 +1,83 @@
-# Dotfiles
+# 浮世 dotfiles
 
-[![Buy Me A Coffee](https://img.shields.io/badge/Buy_Me_A_Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/raineworks)
-
-My personal, opinionated development environment — managed with [GNU Stow](https://www.gnu.org/software/stow/) and designed to get a new machine feeling like home in a single command.
-
-> **Platform target:** This repo is specifically designed for **macOS**. Some pieces may work elsewhere, but the installer flow, package assumptions, and defaults are macOS-first.
-
-> **Fair warning:** These dotfiles reflect *my* workflow and preferences. They ship with specific tool choices (Ghostty, Starship, fzf), a Tokyo Night Starship/VS Code theme direction, rebase-oriented Git defaults, and an alias vocabulary that makes sense to me. Feel free to fork and bend them to your own taste, but don't expect a neutral starting point — this is a setup that works for one person and is shared in the spirit of "steal what's useful."
-
-## Overview
-
-```
-~/.dotfiles/
-├── ghostty/                   # Ghostty terminal emulator config
-├── gitconfig/                 # Git settings, aliases, and merge strategy
-├── shell/                     # Shared aliases, exports, and shell-specific rc files
-│   └── .config/shell/
-│       ├── shelldefs           # Core env vars and general aliases
-│       ├── tools/              # Modular tool configs (auto-sourced)
-│       │   ├── bun.sh
-│       │   ├── deno.sh
-│       │   ├── docker.sh
-│       │   ├── golang.sh
-│       │   ├── kubernetes.sh
-│       │   ├── nvm.sh
-│       │   ├── python.sh
-│       │   └── rust.sh
-│       ├── zshrc               # Zsh-specific config
-│       └── bashrc              # Bash-specific config
-├── starship/                  # Starship cross-shell prompt theme
-├── vscode/                    # VS Code base settings (merged into local user settings)
-├── zed/                        # Zed base settings (merged into local user settings)
-├── AGENTS.md                  # Agent-oriented repo guide and maintenance notes
-├── install.sh                 # Interactive installer with tool selection
-├── scripts/                   # Repository maintenance helpers
-│   └── smoke-check.sh         # Syntax + stow + installer smoke checks
-└── setup.sh                   # One-liner: clone, install deps, hand off to install.sh
-```
-
-Each top-level directory is a **Stow package** — running `stow <package>` symlinks its contents into the corresponding location under `$HOME`. Most files are symlinked only; the VS Code and Zed installers intentionally merge tracked base configs into your local settings files so local edits stay out of this repo.
-
-## Quick Start
-
-These dotfiles target macOS and use Homebrew throughout setup and tool installation.
-
-If you want everything at once — clone the repo, install dependencies, stow all packages, and set up your Git identity — run:
+A shared development environment for macOS and Debian/Ubuntu, in two profiles.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/raine-works/.dotfiles/master/setup.sh | bash
+# Workstation
+curl -fsSL https://raw.githubusercontent.com/raine-works/.dotfiles/master/setup.sh | bash -s -- desktop
+
+# Headless server
+curl -fsSL https://raw.githubusercontent.com/raine-works/.dotfiles/master/setup.sh | bash -s -- server
 ```
 
-The setup script will:
-1. On macOS, auto-install **Homebrew** first if it's missing
-2. Install base dependencies — **Git**, **GNU Stow**, **Starship**, and **fzf** — via Homebrew
-3. Clone this repo to `~/.dotfiles` (or pull latest if it already exists)
-4. Hand off to the interactive installer (`install.sh`), which then:
-   - ensures **GNU Stow** is available (defensive check; installs via Homebrew if needed)
-   - stows the core packages (`shell`, `starship`, `gitconfig`) into `$HOME`
-   - backs up conflicting files to `~/.dotfiles-backups/` before `stow --restow`, with an interactive restore prompt if stowing fails
-   - injects a single `source` line into your existing `~/.zshrc` or `~/.bashrc` (your current config is never overwritten)
-   - launches an **interactive tool picker** for Ghostty, NVM, Bun, Deno, Go, Rust, Python, Docker, Kubernetes, VS Code, Zed, and GitHub CLI Copilot
-   - prompts you to create a local `~/.gitconfig.local` for your Git identity
+Already cloned? Run `~/.dotfiles/install.sh [desktop|server]`. With no argument it asks.
+Re-running is safe: every step skips what is already installed.
 
-## Manual Installation
+## What gets installed
 
-### Prerequisites
+| | Desktop | Server |
+|---|:-:|:-:|
+| zsh config, starship prompt, git config | ✓ | ✓ |
+| Dev utilities: fzf, ripgrep, fd, bat, eza, zoxide, btop, tmux, tree, jq, lazygit, delta | ✓ | ✓ |
+| Node (nvm), Bun, Go, Rust (rustup), Python (uv) | ✓ | ✓ |
+| gh, Claude Code, herdr | ✓ | ✓ |
+| Docker + lazydocker, kubectl, k9s, kubectx/kubens | ✓ | ✓ |
+| NetBird | GUI | CLI |
+| Zed (AI disabled), Ghostty, JetBrainsMono Nerd Font | ✓ | |
 
-| Dependency | Purpose |
-|---|---|
-| [Git](https://git-scm.com/) | Version control |
-| [GNU Stow](https://www.gnu.org/software/stow/) | Symlink manager for dotfiles |
-| [Starship](https://starship.rs/) | Cross-shell prompt |
-| [fzf](https://github.com/junegunn/fzf) | Fuzzy finder used by shell aliases and completions |
+On macOS everything comes from Homebrew, and Docker runs in a [Colima](https://github.com/abiosoft/colima) VM instead of Docker Desktop.
+On Linux, packages come from apt, Docker Engine from get.docker.com, and the rest from each tool's official installer or GitHub releases.
+
+## Updating
 
 ```bash
-# macOS
-brew install git stow starship fzf
+dotfiles update
 ```
 
-### Steps
+Pulls the latest shared config, re-runs the installer with the profile this machine was set up with (it skips everything already installed), and reloads the shell.
+Most changes (zsh, prompt, git config) are live as soon as the pull finishes; the installer step picks up new tools and Zed settings.
+Your own settings are never overwritten (see Customizing).
 
-1. **Clone** the repo into your home directory:
+## Git identity
 
-    ```bash
-    git clone https://github.com/raine-works/.dotfiles.git ~/.dotfiles
-    cd ~/.dotfiles
-    ```
+The last step logs in with `gh` and sets up git from your GitHub account:
 
-2. **Run the install script** — it stows packages, then launches an interactive menu to pick which dev tools to install:
+- `user.name` from your GitHub profile, `user.email` as your GitHub noreply address
+- a per-machine `~/.ssh/id_ed25519`, uploaded to GitHub as both an auth key and a signing key
+- commits and tags signed with that key (shown as **Verified** on GitHub)
+- `gh` as the HTTPS credential helper
 
-    ```bash
-    ./install.sh
-    ```
+Once an identity is set, later installs and updates leave it alone.
 
-    On macOS, this script will auto-install Homebrew first if it is not already installed.
+All of this is written to your own `~/.gitconfig`, never to the repo. Run it again any time with `~/.dotfiles/install.sh git`.
 
-    The menu uses arrow keys to navigate, spacebar to toggle, and enter to confirm. Tools already detected on your system are pre-selected:
+## Customizing
 
-        ```text
-         ❯ [ ] Ghostty            GPU-accelerated terminal emulator
-           [✔] NVM                Node Version Manager
-           [✔] Bun                JavaScript runtime & bundler
-           [ ] Deno               Secure JavaScript/TypeScript runtime
-           [ ] Go                 Go programming language
-           [ ] Rust               Rust programming language and Cargo
-           [ ] Python             Python 3 via pyenv version manager
-           [ ] Docker             Docker Desktop for containers
-           [ ] Kubernetes         kubectl + kubectx/kubens aliases
-           [ ] VS Code            Visual Studio Code editor
-           [ ] Zed                High-performance code editor
-           [ ] GitHub CLI Copilot GitHub CLI with Copilot integration
-           ↑/↓ navigate · space toggle · enter confirm
-        ```
+Nothing in your home directory links into the repo, so your own changes never show up as edits in `~/.dotfiles`, and `git pull` always updates cleanly.
+Each tool gets a file you own that loads the shared config first; your settings go after it and win.
 
-        If you deselect a tool that is currently installed, the installer offers to remove it (and its managed data/config where applicable). It also asks whether to run a deeper package-manager purge when supported.
+| Tool | Your file | How it loads the shared config |
+|---|---|---|
+| zsh | `~/.zshrc` | first line sources `~/.dotfiles/zsh/zshrc` |
+| git | `~/.gitconfig` | `[include]` at the top; `git config --global` writes below it |
+| git ignores | `~/.config/git/ignore` | copied once from `git/ignore`, then yours |
+| starship | `~/.config/starship.toml` | if you create it, it replaces the shared prompt |
+| Ghostty | `~/.config/ghostty/config.local` | `config` includes the shared file, then `config.local` |
+| Zed | `~/.config/zed/settings.json` | shared settings merged in at install; yours win, but AI stays off |
 
-    **Flags:**
-    - `./install.sh --all` — select every tool without the menu
-    - `./install.sh --no-tools` — skip tool selection entirely (stow + shell config only)
+## Layout
 
-    **Current installer tools (source of truth: `install.sh` TOOL_REGISTRY):**
-    - [ ] Ghostty — GPU-accelerated terminal emulator
-    - [ ] NVM — Node Version Manager
-    - [ ] Bun — JavaScript runtime & bundler
-    - [ ] Deno — Secure JavaScript/TypeScript runtime
-    - [ ] Go — Go programming language
-    - [ ] Rust — Rust programming language and Cargo
-    - [ ] Python — Python 3 via pyenv version manager
-    - [ ] Docker — Docker Desktop for containers
-    - [ ] Kubernetes — kubectl + kubectx/kubens aliases
-    - [ ] VS Code — Visual Studio Code editor
-    - [ ] Zed — High-performance code editor
-    - [ ] GitHub CLI Copilot — GitHub CLI with Copilot integration
-
-    Or stow individual packages manually if you only want parts of the config:
-
-    ```bash
-    stow shell        # aliases, exports, PATH, shell rc files
-    stow starship     # prompt theme
-    stow gitconfig    # git settings + aliases
-    stow vscode       # VS Code base settings (Tokyo Night defaults)
-    stow zed          # Zed base settings
-    ```
-
-Ghostty config is stowed automatically when selected in the tool picker. For **VS Code** and **Zed**, prefer `./install.sh` over manual `stow`: the installer migrates older symlinked settings directories if needed, cleans up any leaked local editor settings from the dotfiles package, then merges the tracked base file into your live `settings.json` so editor-written settings stay local.
-
-3. The installer will also prompt you to **create your local Git identity** (not tracked by this repo). You can skip this and create it manually later:
-
-    ```bash
-    cat > ~/.gitconfig.local << 'EOF'
-    [user]
-        email = you@example.com
-        name  = Your Name
-    EOF
-    ```
-
-## What's Inside
-
-### Shell — `shell/`
-
-Symlinks to `~/.config/shell/`. The shell config is split into a core file, modular tool configs, and shell-specific rc files:
-
-| File | Role |
+| Path | Purpose |
 |---|---|
-| `shelldefs` | Core exports, general aliases, and auto-sources everything in `tools/` |
-| `tools/*.sh` | One file per tool — self-guarding modules that only activate when the tool is installed |
-| `zshrc` | Zsh completions (case-insensitive, menu-select, colored), fzf integration, and Starship init |
-| `bashrc` | Bash equivalents of the above |
+| `setup.sh` | Bootstrap: install Homebrew or git, clone, run `install.sh` |
+| `install.sh` | Runs the profile |
+| `lib/` | Install steps: `macos.sh`, `linux.sh`, `tools.sh` (languages, apps, config wiring), `git.sh` |
+| `zsh/`, `starship/`, `git/`, `ghostty/`, `zed/` | Shared configs, loaded from the files above |
 
-The `HOST_IP` variable is auto-detected from your active network interface.
+Set `DOTFILES_REPO` (and optionally `DOTFILES_DIR`) before running `setup.sh` to install from a fork.
 
-**General aliases** (always active):
-- `..` / `...` / `....` — navigate up directories
-- `cl` — clear, `lsa` — `ls -a`, `ip` — show local IP
-- `fzfp` — fzf with a bat file preview
-
-**Tool modules** (activate when the tool is on your PATH):
-
-| Module | Aliases / Config |
-|---|---|
-| `tools/nvm.sh` | NVM initialization and PATH setup |
-| `tools/bun.sh` | Bun shell completions |
-| `tools/deno.sh` | Deno install path export (`$DENO_INSTALL`) and PATH setup |
-| `tools/docker.sh` | `d`, `dps`, `dstop` (safe stop-all helper), `dc`, `dcu`, `dcd` |
-| `tools/golang.sh` | GOPATH defaulting (`$HOME/go` when unset) and `GOPATH/bin` PATH setup |
-| `tools/kubernetes.sh` | `k`, `ka`, `ke`, `kg`, `kd`, `kgpo`, `kgd`, `kgs`, `kgpow`, `kc`/`kns`, `kl`, `klp`/`klns` (fzf pod log selector), `kdel`, `kdelp` (fzf pod deletion) |
-| `tools/python.sh` | pyenv initialization and PATH setup |
-| `tools/rust.sh` | Sources `~/.cargo/env` when present |
-
-### Ghostty — `ghostty/`
-
-Symlinks to `~/.config/ghostty/config`.
-
-- **Font size:** 19px
-- **Font family:** JetBrainsMono Nerd Font
-- **Background opacity:** 0.8 with a 50px blur radius
-- **macOS option key** mapped as Alt (not Meta) for proper keybinds
-- Mouse cursor hides while typing
-
-### Git — `gitconfig/`
-
-Symlinks to `~/.gitconfig`. Identity is kept out of version control via an `[include]` of `~/.gitconfig.local`.
-
-Key opinions baked in:
-- **Editor:** VS Code (`code --wait`)
-- **Default branch:** `master`
-- **Pull strategy:** rebase (no merge bubbles)
-- **Merge conflict style:** `zdiff3` (shows common ancestor for clearer diffs)
-- **Diff algorithm:** `histogram`
-- **Rerere:** enabled — Git remembers how you resolved conflicts
-- **Auto push setup:** `autoSetupRemote = true` (no more `--set-upstream` on first push)
-- **Fetch:** auto-prunes deleted remote branches
-- **Autocorrect:** enabled (10 decisecond delay)
-- **Delta:** commented-out config ready to enable if [delta](https://github.com/dandavison/delta) is installed
-
-**Aliases:** `st`, `co`, `ci`, `br`, `df`, `cp`, `unstage`, `undo`, `amend`, `lg` (pretty graph log), `aliases` (list all aliases)
-
-### Starship — `starship/`
-
-Symlinks to `~/.config/starship/starship.toml`.
-
-- **Theme:** Tokyo Night palette (configured as `tokyo_night` in the Starship palette block)
-- **Prompt layout:** single segmented prompt line (directory → git branch/status → language runtimes → time), then input character on a new line
-- **Prompt character:** blue icon on success, red icon on error, `[N] >>>` in vi normal mode
-- **Kubernetes module:** enabled with context/namespace display when active
-
-### VS Code — `vscode/`
-
-Symlinks a base file at `~/Library/Application Support/Code/User/dotfiles.settings.json` on macOS.
-
-When VS Code is selected in `install.sh`, the installer merges this base file into your local `settings.json` with local values taking precedence. That means editing settings from inside VS Code updates your local file, not this repo.
-
-- **Theme:** `Tokyo Night`
-- **Extension:** `enkia.tokyo-night` (installed automatically when VS Code is selected in the installer)
-
-### Zed — `zed/`
-
-Symlinks a base file at `~/.config/zed/dotfiles.settings.json`.
-
-When Zed is selected in `install.sh`, the installer first makes sure `~/.config/zed` is a real local directory, then merges this base file into your local `settings.json` with local values taking precedence. That means editing settings from inside Zed updates your local file, not this repo.
-
-- **Font:** JetBrainsMono Nerd Font (buffer: 15pt, UI: 16pt, terminal: 15pt)
-- **Panels:** Docks configured (left: project/outline/git/collaboration, right: agent)
-- **Features:** Copilot completions enabled; Git commit messages use Zed's Agent model configuration via `agent.commit_message_model`
-
-### Scripts — `scripts/`
-
-- `smoke-check.sh` — runs the repository's existing syntax, stow simulation, and non-interactive installer smoke checks
-
-## Uninstalling
-
-To remove core dotfile packages, unstow them:
+## Checks
 
 ```bash
-cd ~/.dotfiles
-stow -D shell
-stow -D ghostty
-stow -D starship
-stow -D gitconfig
-stow -D vscode
-stow -D zed
+bash scripts/smoke-check.sh
 ```
-
-This deletes only the symlinks — your original files are untouched. You may also want to remove the `# dotfiles-managed:raine-works` source line from your `~/.zshrc` or `~/.bashrc`.
-
-For development tools (Ghostty, NVM, Bun, Deno, Python/pyenv, Docker, Kubernetes, VS Code, Zed, and GitHub CLI Copilot), the easiest path is to rerun `./install.sh` and deselect the tools you want removed. The script will prompt you before uninstalling anything.
-
-## License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.

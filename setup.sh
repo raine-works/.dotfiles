@@ -1,119 +1,44 @@
 #!/usr/bin/env bash
-set -Ee
+# Bootstrap a new machine:
+#   curl -fsSL https://raw.githubusercontent.com/raine-works/.dotfiles/master/setup.sh | bash -s -- [desktop|server]
+# Installs git (via Homebrew on macOS, apt on Linux), clones the repo, then runs install.sh.
+set -Eeo pipefail
+trap 'printf "\n✗ setup.sh failed at line %s: %s\n" "$LINENO" "$BASH_COMMAND" >&2' ERR
 
 DOTFILES_REPO="${DOTFILES_REPO:-https://github.com/raine-works/.dotfiles.git}"
-DOTFILES_DIR="$HOME/.dotfiles"
+DOTFILES_DIR="${DOTFILES_DIR:-$HOME/.dotfiles}"
 
-# ── Helpers ──────────────────────────────────────────────
-info() { printf "\033[1;34m[info]\033[0m  %s\n" "$1"; }
-ok() { printf "\033[1;32m[ok]\033[0m    %s\n" "$1"; }
-warn() { printf "\033[1;33m[warn]\033[0m  %s\n" "$1"; }
-fail() {
-    printf "\033[1;31m[error]\033[0m %s\n" "$1" >&2
-    exit 1
-}
-command_exists() { command -v "$1" >/dev/null 2>&1; }
+as_root() { if [ "$(id -u)" -eq 0 ]; then "$@"; else sudo "$@"; fi; }
 
-on_err() {
-    local line_no="$1"
-    local exit_code="$2"
-    fail "setup.sh failed at line ${line_no} (exit ${exit_code})"
-}
-
-trap 'on_err "$LINENO" "$?"' ERR
-
-eval_brew_shellenv() {
-    local brew_bin
-    brew_bin="$(command -v brew 2>/dev/null || true)"
-    [ -n "$brew_bin" ] && eval "$("$brew_bin" shellenv)"
-}
-
-# ── Platform bootstrap ──────────────────────────────────
-ensure_homebrew_macos() {
-    if [[ "$(uname)" == "Darwin" ]] && ! command_exists brew; then
-        info "Homebrew not found — installing..."
-        bash <(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)
-        eval_brew_shellenv
-        ok "Homebrew installed"
-    fi
-}
-
-# ── Install base dependencies ───────────────────────────
-install_base_deps() {
-    if command_exists brew; then
-        info "Installing base dependencies via Homebrew..."
-        if ! brew update; then
-            warn "Homebrew update failed; continuing with dependency checks"
+case "$(uname -s)" in
+    Darwin)
+        if ! [ -x /opt/homebrew/bin/brew ] && ! [ -x /usr/local/bin/brew ]; then
+            echo "Installing Homebrew (includes git)…"
+            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" </dev/tty
         fi
-
-        local pkg
-        for pkg in stow git starship fzf; do
-            if ! brew list --formula "$pkg" >/dev/null 2>&1; then
-                HOMEBREW_NO_AUTO_UPDATE=1 brew install "$pkg" || warn "Failed to install $pkg via Homebrew"
-            fi
-        done
-
-        return 0
-    elif command_exists apt-get; then
-        info "Installing base dependencies via apt..."
-        sudo apt-get update -qq
-        sudo apt-get install -y -qq git stow fzf
-
-        if ! command_exists starship; then
-            info "Installing Starship prompt..."
-            curl -fsSL https://starship.rs/install.sh | sh -s -- -y
+        ;;
+    Linux)
+        if ! command -v git >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1; then
+            command -v apt-get >/dev/null 2>&1 || {
+                echo "Only Debian/Ubuntu (apt) Linux is supported" >&2
+                exit 1
+            }
+            as_root apt-get update -qq
+            as_root env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq git curl ca-certificates >/dev/null
         fi
-    elif command_exists dnf; then
-        info "Installing base dependencies via DNF..."
-        local pkg
-        for pkg in git stow fzf; do
-            sudo dnf install -y "$pkg" || warn "Failed to install $pkg via DNF"
-        done
+        ;;
+    *)
+        echo "Unsupported OS: $(uname -s)" >&2
+        exit 1
+        ;;
+esac
 
-        if ! command_exists starship; then
-            info "Installing Starship prompt..."
-            curl -fsSL https://starship.rs/install.sh | sh -s -- -y
-        fi
-    elif command_exists pacman; then
-        info "Installing base dependencies via pacman..."
-        local pkg
-        for pkg in git stow fzf; do
-            sudo pacman -S --noconfirm "$pkg" || warn "Failed to install $pkg via pacman"
-        done
+if [ -d "$DOTFILES_DIR/.git" ]; then
+    echo "Updating $DOTFILES_DIR"
+    git -C "$DOTFILES_DIR" pull --ff-only ||
+        echo "Could not fast-forward $DOTFILES_DIR (local changes?); continuing with what's there" >&2
+else
+    git clone "$DOTFILES_REPO" "$DOTFILES_DIR"
+fi
 
-        if ! command_exists starship; then
-            info "Installing Starship prompt..."
-            curl -fsSL https://starship.rs/install.sh | sh -s -- -y
-        fi
-    else
-        command_exists git || fail "git is required. Install it and re-run."
-        command_exists stow || fail "stow is required. Install it and re-run."
-        command_exists starship || fail "starship is required: https://starship.rs"
-        command_exists fzf || fail "fzf is required: https://github.com/junegunn/fzf"
-    fi
-}
-
-# ── Clone or update ─────────────────────────────────────
-clone_dotfiles() {
-    if [ -d "$DOTFILES_DIR/.git" ]; then
-        info "Dotfiles repo exists — pulling latest..."
-        if ! git -C "$DOTFILES_DIR" pull --rebase; then
-            warn "git pull --rebase failed. Attempting to abort any in-progress rebase..."
-            git -C "$DOTFILES_DIR" rebase --abort >/dev/null 2>&1 || true
-            fail "Failed to update dotfiles repo at $DOTFILES_DIR. Check: git -C $DOTFILES_DIR status"
-        fi
-    elif [ -d "$DOTFILES_DIR" ]; then
-        fail "$DOTFILES_DIR exists but is not a git repo. Remove it first."
-    else
-        info "Cloning dotfiles into $DOTFILES_DIR..."
-        git clone "$DOTFILES_REPO" "$DOTFILES_DIR"
-    fi
-}
-
-# ── Run ──────────────────────────────────────────────────
-ensure_homebrew_macos
-install_base_deps
-clone_dotfiles
-
-# Hand off to the interactive installer
-exec "$DOTFILES_DIR/install.sh" "$@"
+exec bash "$DOTFILES_DIR/install.sh" "$@"
