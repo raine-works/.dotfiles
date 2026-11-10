@@ -64,7 +64,7 @@ install_cli_apps() {
         skip "Claude Code already installed"
     else
         info "Installing Claude Code"
-        run_remote https://claude.ai/install.sh bash >/dev/null
+        run_remote https://claude.ai/install.sh bash >/dev/null || note "Claude Code install failed; see https://code.claude.com/docs/en/setup"
     fi
     ok "Claude Code"
 
@@ -72,7 +72,7 @@ install_cli_apps() {
         skip "herdr already installed"
     else
         info "Installing herdr"
-        run_remote https://herdr.dev/install.sh sh >/dev/null
+        run_remote https://herdr.dev/install.sh sh >/dev/null || note "herdr install failed; see https://herdr.dev/tui/docs/install/"
     fi
     ok "herdr"
 

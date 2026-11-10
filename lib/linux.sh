@@ -10,7 +10,7 @@ APT_PACKAGES=(
 # Installed from apt when the distro has them, otherwise from GitHub releases.
 APT_OPTIONAL=(eza git-delta)
 
-APT_DESKTOP=(fontconfig fonts-noto-cjk)
+APT_DESKTOP=(fontconfig fonts-noto-cjk python3)
 
 case "${ARCH:-}" in
     x86_64) ARCH_RE='(x86_64|amd64)' DEB_ARCH=amd64 ;;
@@ -154,7 +154,7 @@ linux_install_desktop_apps() {
         skip "Zed already installed"
     else
         info "Installing Zed"
-        run_remote https://zed.dev/install.sh sh >/dev/null
+        run_remote https://zed.dev/install.sh sh >/dev/null || note "Zed install failed; see https://zed.dev/docs/linux"
     fi
 
     if has ghostty; then
@@ -172,9 +172,13 @@ linux_install_desktop_apps() {
     else
         info "Installing JetBrainsMono Nerd Font"
         mkdir -p "$font_dir"
-        curl -fsSL https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz |
-            tar -xJ -C "$font_dir"
-        fc-cache -f >/dev/null
+        if curl -fsSL https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz |
+            tar -xJ -C "$font_dir"; then
+            fc-cache -f >/dev/null
+        else
+            rm -rf "$font_dir"
+            note "Nerd Font download failed; re-run to retry"
+        fi
     fi
     ok "Desktop apps ready"
 }

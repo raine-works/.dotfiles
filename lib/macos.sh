@@ -14,11 +14,11 @@ BREW_FORMULAE=(
     colima docker docker-compose docker-buildx lazydocker kubernetes-cli k9s kubectx
 )
 
-# cask|App bundle name (an app already in /Applications is left alone)
+# cask|path that means it's already installed (e.g. installed by hand, outside Homebrew)
 BREW_CASKS_DESKTOP=(
-    "ghostty|Ghostty.app"
-    "zed|Zed.app"
-    "font-jetbrains-mono-nerd-font|"
+    "ghostty|/Applications/Ghostty.app"
+    "zed|/Applications/Zed.app"
+    "font-jetbrains-mono-nerd-font|$HOME/Library/Fonts/JetBrainsMonoNerdFont-Regular.ttf"
 )
 
 ensure_brew_on_path() {
@@ -43,7 +43,7 @@ install_homebrew() {
 }
 
 macos_install_packages() {
-    local profile="$1" installed missing=() formula entry cask app
+    local profile="$1" installed missing=() formula entry cask path
 
     section "Homebrew packages"
     install_homebrew
@@ -66,14 +66,14 @@ macos_install_packages() {
 
     installed=" $(brew list --cask -1 | tr '\n' ' ') "
     for entry in "${BREW_CASKS_DESKTOP[@]}"; do
-        IFS='|' read -r cask app <<<"$entry"
+        IFS='|' read -r cask path <<<"$entry"
         case "$installed" in *" $cask "*) continue ;; esac
-        if [ -n "$app" ] && [ -d "/Applications/$app" ]; then
-            skip "$app already in /Applications"
+        if [ -e "$path" ]; then
+            skip "$cask already installed"
             continue
         fi
         info "Installing $cask"
-        brew install --quiet --cask "$cask"
+        brew install --quiet --cask "$cask" || note "Could not install $cask; install it yourself and re-run"
     done
     ok "Desktop apps ready"
 }
@@ -94,7 +94,10 @@ macos_setup_docker() {
         skip "Colima VM already running"
     else
         info "Starting Colima VM"
-        colima start --vm-type vz --vz-rosetta --cpu 4 --memory 8 --disk 60
+        if ! colima start --vm-type vz --vz-rosetta --cpu 4 --memory 8 --disk 60; then
+            note "Colima failed to start; run 'colima start' to see why"
+            return 0
+        fi
     fi
     docker context use colima >/dev/null
     ok "Docker context set to colima"
