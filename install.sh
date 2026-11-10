@@ -93,6 +93,12 @@ main() {
     section "Done"
     local n
     for n in "${NOTES[@]}"; do warn "$n"; done
+
+    # `dotfiles update` reloads its own shell; otherwise start a fresh one here.
+    if [ -z "$DOTFILES_NO_RELOAD" ]; then
+        info "Starting a fresh zsh with everything loaded"
+        reload_shell
+    fi
     info "Start a new shell to load everything: exec zsh"
 }
 

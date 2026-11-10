@@ -44,6 +44,8 @@ zed/settings.json        ← merged into ~/.config/zed/settings.json (desktop)
 
 `dotfiles update` (zsh function in `zsh/aliases.zsh`) runs `git pull --ff-only`, then `install.sh <profile>` with the profile saved in `~/.config/dotfiles/profile`. Anything a re-run touches must leave user customizations alone: the git identity step only runs when `user.email` is unset (`ensure_git_identity`), unless invoked as `install.sh git`.
 
+Both `install.sh` and `dotfiles update` finish by replacing the process with a fresh `zsh -l`. If the run just added the user to the `docker` group, they start it through `sg docker` so Docker works without logging out (`reload_shell` in `lib/common.sh`; the zsh copy is in `dotfiles()`). `dotfiles update` sets `DOTFILES_NO_RELOAD=1` so the installer doesn't start a nested shell.
+
 ## Adding things
 
 - **CLI tool on both OSes:** add to `BREW_FORMULAE` and either `APT_PACKAGES` or a `github_bin` line in `linux_install_packages`.

@@ -18,6 +18,7 @@ curl -fsSL https://raw.githubusercontent.com/raine-works/.dotfiles/master/setup.
 
 Already cloned? Run `~/.dotfiles/install.sh desktop` or `~/.dotfiles/install.sh server`. With no argument it asks.
 Re-running is safe: every step skips what is already installed.
+When it finishes, you're dropped into a fresh zsh with everything loaded, including Docker access on Linux (no need to log out and back in).
 
 ## What gets installed
 
