@@ -1,0 +1,171 @@
+"$schema" = 'https://starship.rs/config-schema.json'
+
+# 浮世 Ukiyo: ink-wash background, wave blues, sakura pink and a red hanko stamp.
+#
+#   ╭─ 判 prod-01  「~/dev/dotfiles」 枝 master ✦2 ⇡1   22.11
+#   ╰─ ❯                                                  󰔟 3s  時 21:04
+#
+# The red 判 stamp only appears over SSH, so a server prompt is easy to tell apart.
+
+add_newline = true
+command_timeout = 1000
+palette = 'ukiyo'
+
+format = """
+[╭─ ](stone)\
+$username\
+$hostname\
+$directory\
+$git_branch\
+$git_commit\
+$git_state\
+$git_status\
+$nodejs\
+$bun\
+$python\
+$rust\
+$golang\
+$docker_context\
+$kubernetes\
+$jobs
+[╰─ ](stone)$character"""
+
+right_format = '$cmd_duration$time'
+continuation_prompt = '[∙ ](stone)'
+
+[palettes.ukiyo]
+stone = '#54546D'   # sumi ink, frame lines
+mist = '#727169'    # muted text
+paper = '#DCD7BA'   # washi paper
+wave = '#7E9CD8'    # Hokusai blue
+spring = '#7FB4CA'
+aqua = '#7AA89F'
+sakura = '#D27E99'
+koi = '#E46876'
+hanko = '#C34043'   # seal-stamp red
+gold = '#E6C384'
+ronin = '#FF9E3B'
+moss = '#98BB6C'
+violet = '#957FB8'
+
+# ── Who / where ──────────────────────────────────────────
+
+[username]
+show_always = false
+style_user = 'mist'
+style_root = 'bold koi'
+format = '[$user ]($style)'
+
+[hostname]
+ssh_only = true
+style = 'bold fg:paper bg:hanko'
+format = '[ 判 $hostname ]($style)[ ─ ](stone)'
+
+[directory]
+style = 'bold wave'
+format = '[「$path」]($style)[$read_only]($read_only_style) '
+read_only = ' 錠'
+read_only_style = 'koi'
+truncation_length = 3
+truncate_to_repo = true
+truncation_symbol = '…/'
+
+# ── Git ──────────────────────────────────────────────────
+
+[git_branch]
+style = 'sakura'
+format = '[枝 $branch(:$remote_branch)]($style) '
+
+[git_commit]
+style = 'sakura'
+format = '[#$hash$tag]($style) '
+tag_disabled = false
+tag_symbol = ' 札 '
+
+[git_state]
+style = 'bold ronin'
+format = '[\($state( $progress_current/$progress_total)\)]($style) '
+
+[git_status]
+style = 'gold'
+format = '([$all_status$ahead_behind]($style))'
+conflicted = '≠${count} '
+ahead = '⇡${count} '
+behind = '⇣${count} '
+diverged = '⇡${ahead_count}⇣${behind_count} '
+untracked = '?${count} '
+stashed = '≡ '
+modified = '✦${count} '
+staged = '+${count} '
+renamed = '»${count} '
+deleted = '✘${count} '
+
+# ── Languages (shown only inside matching projects) ──────
+
+[nodejs]
+symbol = ' '
+style = 'moss'
+version_format = '${raw}'
+format = '[$symbol($version)]($style) '
+
+[bun]
+symbol = ' '
+style = 'paper'
+version_format = '${raw}'
+format = '[$symbol($version)]($style) '
+
+[python]
+symbol = ' '
+style = 'gold'
+version_format = '${raw}'
+format = '[$symbol$version( \($virtualenv\))]($style) '
+
+[rust]
+symbol = ' '
+style = 'ronin'
+version_format = '${raw}'
+format = '[$symbol($version)]($style) '
+
+[golang]
+symbol = ' '
+style = 'spring'
+version_format = '${raw}'
+format = '[$symbol($version)]($style) '
+
+[docker_context]
+symbol = ' '
+style = 'wave'
+only_with_files = true
+format = '[$symbol$context]($style) '
+
+[kubernetes]
+# 舵 (kaji): the helm. Kubernetes means "helmsman".
+disabled = false
+symbol = '舵 '
+style = 'violet'
+detect_files = ['kustomization.yaml', 'Chart.yaml', 'skaffold.yaml', 'helmfile.yaml']
+detect_folders = ['k8s', 'kubernetes', 'manifests']
+format = '[$symbol$context( \($namespace\))]($style) '
+
+[jobs]
+symbol = '⚙'
+style = 'mist'
+format = '[$symbol$number]($style) '
+
+# ── Prompt line ──────────────────────────────────────────
+
+[character]
+success_symbol = '[❯](bold sakura)'
+error_symbol = '[✗](bold koi)'
+vimcmd_symbol = '[❮](bold moss)'
+
+[cmd_duration]
+min_time = 2000
+style = 'mist'
+format = '[󰔟 $duration]($style)  '
+
+[time]
+disabled = false
+time_format = '%H:%M'
+style = 'mist'
+format = '[時 $time]($style)'

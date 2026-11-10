@@ -1,242 +1,63 @@
 # Dotfiles — Agent Guide
 
-This file provides orientation for AI agents and the known-issue backlog for this repository.
+Shared dev environment for macOS and Debian/Ubuntu, used by several people. One installer, two profiles (`desktop`, `server`), no menus and no uninstall. Re-running is the update path, so every step must be idempotent.
 
----
+Two hard rules:
+- **User-agnostic.** No names, emails, hostnames or paths of a specific person in tracked files. Identity comes from the user's own `gh` login.
+- **The clone stays clean.** Nothing in `$HOME` may symlink into the repo, and no installer may write into it. Each tool gets a user-owned entry file that loads the shared config first (see `link_configs` in `lib/tools.sh`); personal changes go in that file. `scripts/smoke-check.sh` enforces this.
 
-## Overview
+## Layout
 
-A personal development environment managed with **GNU Stow**. Designed to provision a new machine in one command:
+```
+setup.sh                 bootstrap (curl | bash): brew or apt git → clone → exec install.sh
+install.sh               profile entry point: desktop | server | git
+lib/common.sh            logging, OS/ARCH detection, has, as_root, run_remote, note
+lib/macos.sh             BREW_FORMULAE / BREW_CASKS_DESKTOP, Colima docker setup
+lib/linux.sh             APT_PACKAGES, github_bin (GitHub-release binaries), gh/go/docker, desktop apps
+lib/tools.sh             languages (nvm, bun, rustup, uv), Claude Code, herdr, NetBird, config wiring
+lib/git.sh               gh login → SSH key (auth + signing) → identity in ~/.gitconfig
+lib/merge_jsonc.py       Zed settings merge (JSONC tolerant)
+scripts/smoke-check.sh   offline checks, also run in CI
+
+zsh/                     zshrc, aliases.zsh, tools/*.zsh   ← sourced from ~/.zshrc
+starship/starship.toml   ← STARSHIP_CONFIG, unless ~/.config/starship.toml exists
+git/config               ← [include] at the top of ~/.gitconfig
+git/ignore               ← copied once to ~/.config/git/ignore
+ghostty/config           ← config-file include from ~/.config/ghostty/config (desktop)
+zed/settings.json        ← merged into ~/.config/zed/settings.json (desktop)
+```
+
+## Conventions
+
+- **Profiles:** shared steps run for both; gate desktop-only work with `if [ "$profile" = desktop ]`. Don't use `[ … ] && cmd` as the last line of a function: under `set -e` a false test fails the caller.
+- **Idempotence:** every install checks first (`has <cmd>` or a path test) and calls `skip` when already present.
+- **No rc edits by installers:** pass the tool's flag (`PROFILE=/dev/null` for nvm, `--no-modify-path` for rustup, `UV_NO_MODIFY_PATH=1`, `SHELL=/bin/sh` for bun). PATH setup lives in `zsh/tools/`.
+- **Linux binaries** go to `~/.local/bin`; prefer apt, then `github_bin <cmd> <repo> <asset-regex>` with `$ARCH_RE`.
+- **Warnings** that the user must act on go through `note` so they repeat in the final summary.
+- **zsh tool files** guard themselves: `(( $+commands[tool] )) || return 0`, or a directory test when the file adds the tool to PATH. They're sourced before `compinit`, so they may extend `fpath`.
+- **Completions** are generated once at install into `~/.local/share/zsh/site-functions`, not at shell startup.
+- **Git identity** is only ever written to the user's `~/.gitconfig`, never the tracked config.
+- Bash style: 4-space indent, `shfmt -i 4 -ci`, clean under `shellcheck -x`.
+
+## Updates
+
+`dotfiles update` (zsh function in `zsh/aliases.zsh`) runs `git pull --ff-only`, then `install.sh <profile>` with the profile saved in `~/.config/dotfiles/profile`. Anything a re-run touches must leave user customizations alone: the git identity step only runs when `user.email` is unset (`ensure_git_identity`), unless invoked as `install.sh git`.
+
+## Adding things
+
+- **CLI tool on both OSes:** add to `BREW_FORMULAE` and either `APT_PACKAGES` or a `github_bin` line in `linux_install_packages`.
+- **Desktop app:** `BREW_CASKS_DESKTOP` (`cask|App.app`) and `linux_install_desktop_apps`.
+- **Shell setup for a tool:** new `zsh/tools/<tool>.zsh`; it is picked up automatically.
+- **New shared config:** add `<tool>/<file>` and a `hook_<tool>` in `lib/tools.sh` that creates or updates a user-owned entry file pointing at it (include, source, or env var). Never symlink.
+
+## Testing
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/raine-works/.dotfiles/master/setup.sh | bash
+bash scripts/smoke-check.sh
+# Full server run in a throwaway container (needs docker):
+docker run --rm -v "$PWD":/src:ro ubuntu:24.04 bash -c '
+  apt-get update -qq && apt-get install -y -qq sudo curl git >/dev/null
+  useradd -m dev && echo "dev ALL=(ALL) NOPASSWD:ALL" >/etc/sudoers.d/dev
+  cp -r /src /home/dev/.dotfiles && chown -R dev /home/dev/.dotfiles
+  su - dev -c "bash ~/.dotfiles/install.sh server"'
 ```
-
-- **Primary platform:** macOS
-- **Theme:** Tokyo Night palette in Starship prompt configuration
-- **Package manager:** Homebrew
-- **Config strategy:** mostly symlinks via `stow`; VS Code and Zed settings use stowed base files merged into local settings
-
----
-
-## Repository Structure
-
-Each top-level directory is a **Stow package**. The directory tree inside each package mirrors `$HOME`, so Stow can create the correct symlinks.
-
-```
-.dotfiles/
-├── AGENTS.md               ← this file
-├── install.sh              ← interactive installer
-├── scripts/
-│   └── smoke-check.sh      ← repository smoke checks
-├── setup.sh                ← bootstrap (curl | bash entry point)
-├── README.md
-├── .gitignore              ← ignores .DS_Store and *.local files
-│
-├── shell/                  ← stow package: shell configuration
-│   └── .config/shell/
-│       ├── shelldefs       ← shared aliases + env vars (zsh + bash)
-│       ├── zshrc           ← zsh-specific config (completions, prompt)
-│       ├── bashrc          ← bash-specific config
-│       └── tools/          ← modular per-tool configs, self-guarding
-│           ├── bun.sh
-│           ├── deno.sh
-│           ├── docker.sh
-│           ├── golang.sh
-│           ├── kubernetes.sh
-│           ├── nvm.sh
-│           ├── python.sh
-│           └── rust.sh
-│
-├── starship/               ← stow package: Starship prompt config
-│   └── .config/starship/starship.toml
-│
-├── gitconfig/              ← stow package: Git config
-│   └── .gitconfig
-│
-├── ghostty/                ← stow package: Ghostty terminal config
-│   └── .config/ghostty/config
-│
-├── vscode/                 ← stow package: VS Code settings (merged)
-│   └── Library/Application Support/Code/User/
-│       └── dotfiles.settings.json
-│
-└── zed/                    ← stow package: Zed settings (merged)
-    └── .config/zed/
-        └── dotfiles.settings.json
-```
-
-**Stow command used throughout:**
-```bash
-stow -d "$DOTFILES_DIR" -t "$HOME" --restow <package>
-```
-
----
-
-## Shell Config Layering
-
-Understanding this chain is critical before editing any shell file.
-
-```
-~/.zshrc  (or ~/.bashrc)
-  ↓  [source line injected by install.sh with marker: # dotfiles-managed:raine-works]
-~/.config/shell/zshrc  (or bashrc)
-  ↓  [explicit source at top of file]
-~/.config/shell/shelldefs
-  ↓  [glob loop: for f in tools/*.sh; do . "$f"; done]
-~/.config/shell/tools/*.sh  (nvm.sh, docker.sh, kubernetes.sh, …)
-```
-
-**The injection marker** used to detect and prevent duplicate entries:
-```bash
-SOURCE_TAG="# dotfiles-managed:raine-works"
-```
-
-**Tool files are self-guarding** — they bail out immediately if the tool isn't installed:
-```bash
-# Example: docker.sh
-command -v docker >/dev/null 2>&1 || return 0
-```
-Always follow this pattern when adding a new tool file.
-
-**shelldefs** is sourced by both `zshrc` and `bashrc`, making it the right place for cross-shell aliases and environment variables.
-
----
-
-## Installation Flow
-
-### `setup.sh` (bootstrap)
-1. Detects OS; installs Homebrew on macOS if missing
-2. Installs base deps: `stow`, `git`, `starship`, `fzf` via Homebrew
-3. Clones the repo to `~/.dotfiles`, or pulls latest if it already exists
-4. Execs into `install.sh`
-
-### `install.sh` (interactive installer)
-1. Presents an arrow-key/spacebar TUI menu to select tools
-2. Stows core packages: `shell`, `starship`, `gitconfig`
-3. Injects `[ -f ~/.config/shell/{zshrc|bashrc} ] && source ... # dotfiles-managed:raine-works` into user's existing rc file
-4. Runs selected tool installers
-5. Prompts to create `~/.gitconfig.local` with name/email
-
-### VS Code settings behavior
-
-The `vscode` package stows `dotfiles.settings.json` into `~/Library/Application Support/Code/User/`.
-
-`install_vscode()` then merges:
-- base: `dotfiles.settings.json` (tracked in this repo)
-- local: `settings.json` (user-edited, not tracked)
-
-Local values win on merge, so in-editor settings changes do not mutate this repository.
-
-**Flags:**
-| Flag | Effect |
-|------|--------|
-| `--all` | Pre-select all tools, skip the menu |
-| `--no-tools` | Skip tool selection entirely (stow + shell config only) |
-
-**Re-running is safe:** `--restow` re-creates symlinks idempotently; the marker prevents double-injection of the source line.
-
----
-
-## Key Conventions
-
-### Adding a new tool config
-
-1. Create `shell/.config/shell/tools/<toolname>.sh`
-2. First line must be a self-guard:
-   ```bash
-   command -v <toolname> >/dev/null 2>&1 || return 0
-   ```
-3. No registration needed — `shelldefs` globs all `*.sh` files in `tools/` automatically
-
-### Adding a new Stow package
-
-1. Create `<packagename>/<mirror of $HOME path>/` — e.g. `foo/.config/foo/config`
-2. Add the package name to the `PACKAGES` array in `install.sh`
-3. Test first with dry run: `stow -n --simulate -d ~/.dotfiles -t ~ <packagename>`
-
-### Adding a tool to the installer
-
-1. Add one entry to the `TOOL_REGISTRY` array in `install.sh`:
-   ```bash
-   "<id>|Display Name|Short description"
-   ```
-2. Create `install_<id>()` — use `install_package` or `detect_package_manager` for multi-platform support.
-3. Create `uninstall_<id>()` — use `uninstall_via_brew` for Homebrew packages; handle other managers explicitly.
-4. Add a `verify_tool_installed()` case if the tool's command differs from its id.
-5. Add a `is_tool_detected()` case to enable pre-selection in the TUI menu.
-
-No array sync needed — `TOOL_IDS`, `TOOL_NAMES`, `TOOL_DESCS` are derived automatically from `TOOL_REGISTRY`.
-
-### Adding cross-shell aliases or env vars
-
-- Put them in `shell/.config/shell/shelldefs` (sourced by both zsh and bash)
-- Shell-specific logic goes in `shell/.config/shell/zshrc` or `bashrc`
-
-### Git identity
-
-Stored in `~/.gitconfig.local` (git-ignored, user-local). The stowed `.gitconfig` includes it via `[include] path = ~/.gitconfig.local`.
-
-### Editor settings merge (VS Code & Zed)
-
-Both VS Code and Zed use a **base file + local merge** pattern:
-- **Base file** (tracked): `dotfiles.settings.json` (stowed into respective config directories)
-- **Local file** (user-edited, not tracked): `settings.json` 
-- **Merge strategy**: Base settings + user overrides (user values always win)
-- **Merge logic**: Deep merge via Python in `install.sh` called by `vscode_merge_settings()` and `zed_merge_settings()`
-
-This allows you to edit settings in the editor without those changes bleeding into the repo.
-
----
-
-## Testing Changes
-
-```bash
-# Dry-run stow to preview symlinks without creating them
-stow -n --simulate -d ~/.dotfiles -t ~ <package>
-
-# Re-stow a package after editing its files
-stow -d ~/.dotfiles -t ~ --restow <package>
-
-# Reload shell config without opening a new shell
-exec $SHELL
-
-# Re-run the full installer
-bash ~/.dotfiles/install.sh
-
-# Re-run with all tools selected, no menu
-bash ~/.dotfiles/install.sh --all
-
-# Re-run skipping tool selection (stow + shell config only)
-bash ~/.dotfiles/install.sh --no-tools
-
-# Run the repository smoke checks
-bash ~/.dotfiles/scripts/smoke-check.sh
-```
-
----
-
-## Known Issues / TODO
-
-### Open
-
-*(None — all known issues resolved.)*
-
----
-
-### Completed (March 2026)
-
-- **`HOST_IP` cross-platform fallback** implemented in `shell/.config/shell/shelldefs`.
-- **NVM double-sourcing** fixed in `shell/.config/shell/tools/nvm.sh` by choosing one valid source path.
-- **Starship `success_symbol`** already corrected in `starship/.config/starship/starship.toml`.
-- **`git pull --quiet` silent failures** fixed in `setup.sh` by removing quiet mode and adding explicit failure handling.
-- **Unique source marker** implemented in `install.sh` (`# dotfiles-managed:raine-works`) with legacy marker compatibility.
-- **Stow failure diagnostics** improved in `install.sh` with preflight checks and explicit error messaging.
-- **Kubernetes empty fzf selection feedback** implemented in `shell/.config/shell/tools/kubernetes.sh` via guarded `klp`/`klns` functions.
-- **Fragile Homebrew path assumptions** removed in `setup.sh` and `install.sh` by resolving brew through `command -v`.
-- **`DOTFILES_REPO` hardcoded value** replaced in `setup.sh` with environment-default override.
-- **`set -e` without context** addressed in `setup.sh` and `install.sh` with line-aware ERR traps.
-- **No pre-flight backup before `stow --restow`** resolved: `backup_stow_conflicts()` now creates a dated tarball of conflicting targets in `~/.dotfiles-backups/` (retains last 5), and `restore_stow_backup()` offers interactive restore on stow failure. `install.sh`.
-- **Tool metadata duplication** eliminated: `TOOL_REGISTRY` single-source array replaced three parallel arrays; `TOOL_IDS`/`TOOL_NAMES`/`TOOL_DESCS` are derived automatically. `install.sh`.
-- **Repetitive uninstaller boilerplate** consolidated: `uninstall_via_brew()` helper extracts brew-formula/cask uninstall logic; each uninstaller reduced to a thin wrapper. `install.sh`.
-- **Post-install PATH verification** added: `verify_tool_installed()` warns (non-blocking) when a tool's command is missing from PATH after install. `install.sh`.

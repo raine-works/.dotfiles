@@ -1,8 +1,0 @@
-# shellcheck shell=bash
-# Python — pyenv init and PATH
-command -v pyenv >/dev/null 2>&1 || return 0
-
-export PYENV_ROOT="$HOME/.pyenv"
-[ -d "$PYENV_ROOT/bin" ] && export PATH="$PYENV_ROOT/bin:$PATH"
-
-eval "$(pyenv init -)"

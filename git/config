@@ -1,0 +1,88 @@
+# Managed git defaults, included from the top of ~/.gitconfig. Your identity,
+# signing key and any personal settings go in ~/.gitconfig below the include.
+
+[init]
+    defaultBranch = master
+
+[core]
+    # Editor comes from $EDITOR (set per machine in the zsh config).
+    pager = delta
+    untrackedCache = true
+
+[interactive]
+    diffFilter = delta --color-only
+
+[delta]
+    navigate = true
+    line-numbers = true
+    syntax-theme = ansi
+
+[column]
+    ui = auto
+
+[branch]
+    sort = -committerdate
+
+[tag]
+    sort = version:refname
+
+[status]
+    showStash = true
+
+[commit]
+    # Show the diff below the message while writing a commit.
+    verbose = true
+
+[diff]
+    algorithm = histogram
+    colorMoved = plain
+    colorMovedWS = allow-indentation-change
+    mnemonicPrefix = true
+    renames = true
+
+[merge]
+    conflictstyle = zdiff3
+
+[rerere]
+    enabled = true
+    autoupdate = true
+
+[fetch]
+    prune = true
+    pruneTags = true
+    all = true
+
+[pull]
+    rebase = true
+
+[rebase]
+    autoStash = true
+    autoSquash = true
+    updateRefs = true
+
+[push]
+    autoSetupRemote = true
+    default = simple
+    followTags = true
+
+[transfer]
+    # Verify objects on fetch and push to catch corruption early.
+    fsckObjects = true
+
+[help]
+    autocorrect = prompt
+
+[alias]
+    st = status -sb
+    co = checkout
+    sw = switch
+    br = branch
+    df = diff
+    cp = cherry-pick
+    unstage = restore --staged
+    undo = reset HEAD~1
+    amend = commit --amend --no-edit
+    wip = !git add -A && git commit --no-verify -m 'wip'
+    recent = branch --sort=-committerdate --format='%(committerdate:relative)%09%(refname:short)'
+    lg = log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) %C(green)(%ar)%C(reset) %s %C(dim)- %an%C(reset)%C(auto)%d%C(reset)'
+    aliases = config --get-regexp ^alias\\.
