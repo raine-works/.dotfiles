@@ -61,6 +61,25 @@ as_root() {
 
 has_systemd() { [ -d /run/systemd/system ]; }
 
+# In the docker group (per /etc/group) but this session started before that,
+# so the session doesn't have it yet.
+docker_group_pending() {
+    getent group docker 2>/dev/null | cut -d: -f4 | tr ',' '\n' | grep -x "$USER" >/dev/null &&
+        ! id -nG | tr ' ' '\n' | grep -x docker >/dev/null
+}
+
+# Replace this process with a fresh login zsh, picking up a newly added docker
+# group if needed (like newgrp). Only when there's a terminal to hand over.
+reload_shell() {
+    { : </dev/tty; } 2>/dev/null || return 0
+    has zsh || return 0
+    if [ "$OS" = linux ] && docker_group_pending && has sg; then
+        info "Starting zsh with the docker group active"
+        exec sg docker -c 'exec zsh -l' </dev/tty
+    fi
+    exec zsh -l </dev/tty
+}
+
 # Run a remote installer script. Usage: run_remote <url> <shell> [args...]
 run_remote() {
     local url="$1" shell="$2"

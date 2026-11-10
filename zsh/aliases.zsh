@@ -51,7 +51,13 @@ dotfiles() {
     update)
       git -C "$DOTFILES_DIR" pull --ff-only || return
       [[ -r $profile_file ]] && profile="$(<"$profile_file")"
-      bash "$DOTFILES_DIR/install.sh" $profile && exec zsh
+      DOTFILES_NO_RELOAD=1 bash "$DOTFILES_DIR/install.sh" $profile || return
+      # Reload this shell; via sg if the install just added us to the docker group.
+      if [[ " ${(f)$(getent group docker 2>/dev/null | cut -d: -f4 | tr , '\n')} " == *" $USER "* ]] &&
+         [[ " $(id -nG) " != *" docker "* ]] && (( $+commands[sg] )); then
+        exec sg docker -c 'exec zsh -l'
+      fi
+      exec zsh -l
       ;;
     *)
       print -u2 "usage: dotfiles update"

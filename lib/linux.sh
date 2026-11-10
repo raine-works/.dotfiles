@@ -137,7 +137,7 @@ linux_setup_docker() {
 
     if ! id -nG "$USER" | grep -w docker >/dev/null; then
         as_root usermod -aG docker "$USER"
-        note "Added $USER to the docker group; log out and back in to use docker without sudo"
+        info "Added $USER to the docker group (active in the new shell at the end)"
     fi
 
     if has_systemd; then
