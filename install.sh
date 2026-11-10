@@ -72,6 +72,10 @@ main() {
         linux_install_packages "$profile"
     fi
 
+    # Right after the base packages, so a failure further on can't leave the
+    # shell pointing at a config that isn't wired up yet.
+    link_configs "$profile"
+
     install_toolchains
     install_cli_apps "$profile"
 
@@ -82,7 +86,6 @@ main() {
         if [ "$profile" = desktop ]; then linux_install_desktop_apps; fi
     fi
 
-    link_configs "$profile"
     generate_completions
     if [ "$OS" = linux ]; then linux_set_login_shell; fi
     ensure_git_identity

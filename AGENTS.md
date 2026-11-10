@@ -34,6 +34,7 @@ zed/settings.json        ← merged into ~/.config/zed/settings.json (desktop)
 - **No rc edits by installers:** pass the tool's flag (`PROFILE=/dev/null` for nvm, `--no-modify-path` for rustup, `UV_NO_MODIFY_PATH=1`, `SHELL=/bin/sh` for bun). PATH setup lives in `zsh/tools/`.
 - **Linux binaries** go to `~/.local/bin`; prefer apt, then `github_bin <cmd> <repo> <asset-regex>` with `$ARCH_RE`.
 - **Warnings** that the user must act on go through `note` so they repeat in the final summary.
+- **Failure policy:** core steps (packages, languages, config wiring) stop the run. Optional apps (casks, GUI apps, Claude Code, herdr, NetBird, Colima start) `note` and continue. Config wiring runs right after the base packages so a later failure never leaves a half-migrated shell. Anything may already be installed outside the package manager (e.g. a hand-installed font or app), so check for it first.
 - **zsh tool files** guard themselves: `(( $+commands[tool] )) || return 0`, or a directory test when the file adds the tool to PATH. They're sourced before `compinit`, so they may extend `fpath`.
 - **Completions** are generated once at install into `~/.local/share/zsh/site-functions`, not at shell startup.
 - **Git identity** is only ever written to the user's `~/.gitconfig`, never the tracked config.
