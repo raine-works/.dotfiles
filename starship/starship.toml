@@ -3,7 +3,7 @@
 # 浮世 Ukiyo: ink-wash background, wave blues, sakura pink and a red hanko stamp.
 #
 #   ╭─ 判 prod-01  「~/dev/dotfiles」 枝 master ✦2 ⇡1   22.11
-#   ╰─ ❯                                                  󰔟 3s  時 21:04
+#   ╰─ ❯                                                  󰔟 3s  時 21:04 MST
 #
 # The red 判 stamp only appears over SSH, so a server prompt is easy to tell apart.
 
@@ -166,6 +166,7 @@ format = '[󰔟 $duration]($style)  '
 
 [time]
 disabled = false
-time_format = '%H:%M'
+# %Z is the zone abbreviation (MST/MDT, UTC, ...), so local and server clocks are easy to tell apart.
+time_format = '%H:%M %Z'
 style = 'mist'
 format = '[時 $time]($style)'
