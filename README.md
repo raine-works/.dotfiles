@@ -1,16 +1,22 @@
 # 浮世 dotfiles
 
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy_Me_A_Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/raineworks)
+
 A shared development environment for macOS and Debian/Ubuntu, in two profiles.
 
-```bash
-# Workstation
-curl -fsSL https://raw.githubusercontent.com/raine-works/.dotfiles/master/setup.sh | bash -s -- desktop
+**Desktop** (workstation with GUI apps):
 
-# Headless server
+```bash
+curl -fsSL https://raw.githubusercontent.com/raine-works/.dotfiles/master/setup.sh | bash -s -- desktop
+```
+
+**Server** (headless, CLI only):
+
+```bash
 curl -fsSL https://raw.githubusercontent.com/raine-works/.dotfiles/master/setup.sh | bash -s -- server
 ```
 
-Already cloned? Run `~/.dotfiles/install.sh [desktop|server]`. With no argument it asks.
+Already cloned? Run `~/.dotfiles/install.sh desktop` or `~/.dotfiles/install.sh server`. With no argument it asks.
 Re-running is safe: every step skips what is already installed.
 
 ## What gets installed
