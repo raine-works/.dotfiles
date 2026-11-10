@@ -33,6 +33,7 @@ When it finishes, you're dropped into a fresh zsh with everything loaded, includ
 | Zed (AI disabled), Ghostty, JetBrainsMono Nerd Font | ✓ | |
 
 On macOS everything comes from Homebrew, and Docker runs in a [Colima](https://github.com/abiosoft/colima) VM instead of Docker Desktop.
+Colima runs as a Homebrew service, so Docker is available after every login (`brew services stop colima` turns that off).
 On Linux, packages come from apt, Docker Engine from get.docker.com, and the rest from each tool's official installer or GitHub releases.
 
 ## Updating

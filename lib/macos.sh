@@ -90,17 +90,37 @@ macos_setup_docker() {
     jq --arg dir "$plugins" '.cliPluginsExtraDirs = ((.cliPluginsExtraDirs // []) - [$dir] + [$dir])' "$config" >"$tmp" && mv "$tmp" "$config"
     ok "Compose and buildx plugins registered"
 
-    if colima status >/dev/null 2>&1; then
-        skip "Colima VM already running"
-    else
-        info "Starting Colima VM"
+    # The first start creates the VM with these settings; later starts reuse them.
+    if [ ! -f "$HOME/.colima/default/colima.yaml" ]; then
+        info "Creating Colima VM"
         if ! colima start --vm-type vz --vz-rosetta --cpu 4 --memory 8 --disk 60; then
             note "Colima failed to start; run 'colima start' to see why"
             return 0
         fi
     fi
-    docker context use colima >/dev/null
-    ok "Docker context set to colima"
+
+    # Run it as a Homebrew service so it starts at login. A VM started by hand
+    # is stopped first so the service owns the only instance.
+    if brew services info colima --json | jq -e '.[0].running' >/dev/null; then
+        skip "Colima already starts at login"
+    else
+        info "Setting Colima to start at login"
+        if colima status >/dev/null 2>&1; then colima stop >/dev/null 2>&1 || true; fi
+        brew services start colima >/dev/null
+        ok "Colima starts at login (brew services)"
+    fi
+
+    # While starting, Colima briefly switches docker to the default context, so
+    # wait until docker answers on the current context, not just `colima status`.
+    for _ in $(seq 1 60); do
+        [ "$(docker context show 2>/dev/null)" = colima ] && docker info >/dev/null 2>&1 && break
+        sleep 2
+    done
+    if docker info >/dev/null 2>&1; then
+        ok "Docker is ready (context: colima)"
+    else
+        note "Docker isn't answering yet; see $(brew --prefix)/var/log/colima.log"
+    fi
 
     if [ -d /Applications/Docker.app ]; then
         note "Docker Desktop is still installed. Once Colima works for you, remove it with: brew uninstall --cask docker-desktop (or drag Docker.app to the Trash)"
