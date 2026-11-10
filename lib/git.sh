@@ -103,7 +103,9 @@ setup_git_identity() {
 # Normal installs leave an existing identity alone, so re-running never undoes a
 # user's own git settings. `install.sh git` re-syncs from GitHub on purpose.
 ensure_git_identity() {
-    if [ -n "$(git config --file "$GIT_USER_CONFIG" user.email 2>/dev/null)" ]; then
+    # --includes so an identity in an included file (e.g. ~/.gitconfig.local) counts;
+    # `|| true` because a missing key exits 1, which would trip the ERR trap.
+    if [ -n "$(git config --file "$GIT_USER_CONFIG" --includes user.email 2>/dev/null || true)" ]; then
         section "Git identity (GitHub)"
         skip "Already set in ~/.gitconfig; run '~/.dotfiles/install.sh git' to re-sync from GitHub"
         return 0
