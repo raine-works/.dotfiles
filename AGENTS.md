@@ -14,26 +14,12 @@ not here. Where this file is more specific, it wins.
 
 @.raineworks/base.md
 
-## Layout
+## Docs
 
-```
-setup.sh                 bootstrap (curl | bash): brew or apt git → clone → exec install.sh
-install.sh               profile entry point: desktop | server | git
-lib/common.sh            logging, OS/ARCH detection, has, as_root, run_remote, note
-lib/macos.sh             BREW_FORMULAE / BREW_CASKS_DESKTOP, Colima docker setup
-lib/linux.sh             APT_PACKAGES, github_bin (GitHub-release binaries), gh/go/docker, desktop apps
-lib/tools.sh             languages (nvm, bun, rustup, uv), Claude Code, herdr, NetBird, config wiring
-lib/git.sh               gh login → SSH key (auth + signing) → identity in ~/.gitconfig
-lib/merge_jsonc.py       Zed settings merge (JSONC tolerant)
-scripts/smoke-check.sh   offline checks, also run in CI
-
-zsh/                     zshrc, aliases.zsh, tools/*.zsh   ← sourced from ~/.zshrc
-starship/starship.toml   ← STARSHIP_CONFIG, unless ~/.config/starship.toml exists
-git/config               ← [include] at the top of ~/.gitconfig
-git/ignore               ← copied once to ~/.config/git/ignore
-ghostty/config           ← config-file include from ~/.config/ghostty/config (desktop)
-zed/settings.json        ← merged into ~/.config/zed/settings.json (desktop)
-```
+How-tos and reasoning live in [`docs/`](docs/README.md), indexed by its README. [Development](docs/development.md)
+has the repository layout, how to add a tool, app or shared config, and how to test;
+[Configuration](docs/configuration.md) shows where each shared config is loaded from. A change that makes a doc wrong
+updates it in the same pull request.
 
 ## Conventions
 
@@ -57,19 +43,8 @@ Both `install.sh` and `dotfiles update` finish by replacing the process with a f
 
 ## Adding things
 
-- **CLI tool on both OSes:** add to `BREW_FORMULAE` and either `APT_PACKAGES` or a `github_bin` line in `linux_install_packages`.
-- **Desktop app:** `BREW_CASKS_DESKTOP` (`cask|App.app`) and `linux_install_desktop_apps`.
-- **Shell setup for a tool:** new `zsh/tools/<tool>.zsh`; it is picked up automatically.
-- **New shared config:** add `<tool>/<file>` and a `hook_<tool>` in `lib/tools.sh` that creates or updates a user-owned entry file pointing at it (include, source, or env var). Never symlink.
+- A CLI tool or desktop app is added for both OSes, never just one. A new shared config gets a `hook_<tool>` in `lib/tools.sh` that creates or updates a user-owned entry file pointing at it; never a symlink. The steps are in [Development](docs/development.md#adding-things).
 
 ## Testing
 
-```bash
-bash scripts/smoke-check.sh
-# Full server run in a throwaway container (needs docker):
-docker run --rm -v "$PWD":/src:ro ubuntu:24.04 bash -c '
-  apt-get update -qq && apt-get install -y -qq sudo curl git >/dev/null
-  useradd -m dev && echo "dev ALL=(ALL) NOPASSWD:ALL" >/etc/sudoers.d/dev
-  cp -r /src /home/dev/.dotfiles && chown -R dev /home/dev/.dotfiles
-  su - dev -c "bash ~/.dotfiles/install.sh server"'
-```
+`bash scripts/smoke-check.sh` must pass before a change is done (CI runs it too). For installer changes, also do the full server run in a throwaway container described in [Development](docs/development.md#testing).
