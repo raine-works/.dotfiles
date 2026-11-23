@@ -5,6 +5,10 @@ on:
   push:
     branches: [master]
 
+# The smoke check only reads the checkout: a read-only token, even for a pull request's code
+permissions:
+  contents: read
+
 jobs:
   smoke-check:
     runs-on: ubuntu-latest
