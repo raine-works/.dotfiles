@@ -31,6 +31,7 @@ This page is for changing the dotfiles themselves. The repository is used by sev
 - **zsh tool files** guard themselves with `(( $+commands[tool] )) || return 0`.
 - **Completions** are generated once at install, not at shell startup.
 - **Bash style:** 4-space indent, `shfmt -i 4 -ci`, clean under `shellcheck -x`.
+- **Strict mode:** `install.sh`, `setup.sh` and `scripts/*.sh` start with `set -Eeuo pipefail`, so the `lib/` files they source run under `set -u` too. Default optional variables (`${VAR:-}`), and expand arrays that may be empty as `${arr[@]+"${arr[@]}"}`: macOS’s bash 3.2 calls an empty array unbound.
 
 ## Adding things
 
@@ -47,7 +48,7 @@ The offline checks need no network:
 bash scripts/smoke-check.sh
 ```
 
-They check bash and zsh syntax, run `shellcheck` and `shfmt` when installed, parse the git, Zed and starship configs, check the Zed merge, and wire the configs into a scratch `HOME` twice, verifying that your own settings are kept, that no symlinks are created and that the repository stays clean. CI (`.github/workflows/shell-quality.yml`) runs the same script on every pull request and push to `master`.
+They check bash and zsh syntax and that the scripts run in strict mode, run `shellcheck` and `shfmt` when installed, parse the git, Zed and starship configs, check the Zed merge, and wire the configs into a scratch `HOME` twice, verifying that your own settings are kept, that no symlinks are created and that the repository stays clean. CI (`.github/workflows/shell-quality.yml`) runs the same script on every pull request and push to `master`.
 
 To test a full server install in a throwaway container (needs Docker):
 
