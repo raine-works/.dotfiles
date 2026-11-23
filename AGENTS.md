@@ -47,6 +47,7 @@ zed/settings.json        ← merged into ~/.config/zed/settings.json (desktop)
 - **Completions** are generated once at install into `~/.local/share/zsh/site-functions`, not at shell startup.
 - **Git identity** is only ever written to the user's `~/.gitconfig`, never the tracked config.
 - Bash style: 4-space indent, `shfmt -i 4 -ci`, clean under `shellcheck -x`.
+- **Strict mode:** `install.sh`, `setup.sh` and `scripts/*.sh` start with `set -Eeuo pipefail` (the smoke check enforces it), so the `lib/` files they source run under `set -u` too: default optional variables (`${VAR:-}`) and expand arrays that may be empty as `${arr[@]+"${arr[@]}"}`, since macOS's bash 3.2 calls an empty array unbound.
 
 ## Updates
 
