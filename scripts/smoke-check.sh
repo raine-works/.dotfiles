@@ -13,6 +13,14 @@ step() { printf '\n== %s\n' "$*"; }
 step "bash syntax"
 for f in install.sh setup.sh lib/*.sh scripts/*.sh; do bash -n "$f"; done
 
+step "scripts run in strict mode (set -Eeuo pipefail)"
+for f in install.sh setup.sh scripts/*.sh; do
+    grep -qx 'set -Eeuo pipefail' "$f" || {
+        echo "$f doesn't set -Eeuo pipefail" >&2
+        exit 1
+    }
+done
+
 step "zsh syntax"
 for f in zsh/zshrc zsh/*.zsh zsh/tools/*.zsh; do zsh -n "$f"; done
 
@@ -49,7 +57,7 @@ printf 'font-size = 12\n' >"$TMP_HOME/.config/ghostty-seed"
 mkdir -p "$TMP_HOME/.config/ghostty" && mv "$TMP_HOME/.config/ghostty-seed" "$TMP_HOME/.config/ghostty/config"
 for _ in 1 2; do
     HOME="$TMP_HOME" DOTFILES_DIR="$ROOT" bash -c '
-        set -Eeo pipefail
+        set -Eeuo pipefail
         . lib/common.sh
         . lib/tools.sh
         link_configs desktop >/dev/null'

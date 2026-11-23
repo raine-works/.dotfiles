@@ -2,7 +2,7 @@
 # Bootstrap a new machine:
 #   curl -fsSL https://raw.githubusercontent.com/raine-works/.dotfiles/master/setup.sh | bash -s -- [desktop|server]
 # Installs git (via Homebrew on macOS, apt on Linux), clones the repo, then runs install.sh.
-set -Eeo pipefail
+set -Eeuo pipefail
 trap 'printf "\n✗ setup.sh failed at line %s: %s\n" "$LINENO" "$BASH_COMMAND" >&2' ERR
 
 DOTFILES_REPO="${DOTFILES_REPO:-https://github.com/raine-works/.dotfiles.git}"
