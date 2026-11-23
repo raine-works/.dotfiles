@@ -4,7 +4,7 @@
 #   server   headless: CLI tools and languages only
 #   git      only (re)run the GitHub login and git identity step
 # Safe to re-run: every step skips what is already in place.
-set -Eeo pipefail
+set -Eeuo pipefail
 trap 'printf "\n✗ install.sh failed at line %s: %s\n" "$LINENO" "$BASH_COMMAND" >&2' ERR
 
 DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -92,10 +92,11 @@ main() {
 
     section "Done"
     local n
-    for n in "${NOTES[@]}"; do warn "$n"; done
+    # The `+` form because macOS's bash 3.2 calls an empty array unbound under `set -u`.
+    for n in ${NOTES[@]+"${NOTES[@]}"}; do warn "$n"; done
 
     # `dotfiles update` reloads its own shell; otherwise start a fresh one here.
-    if [ -z "$DOTFILES_NO_RELOAD" ]; then
+    if [ -z "${DOTFILES_NO_RELOAD:-}" ]; then
         info "Starting a fresh zsh with everything loaded"
         reload_shell
     fi
