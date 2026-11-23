@@ -6,6 +6,14 @@ Two hard rules:
 - **User-agnostic.** No names, emails, hostnames or paths of a specific person in tracked files. Identity comes from the user's own `gh` login.
 - **The clone stays clean.** Nothing in `$HOME` may symlink into the repo, and no installer may write into it. Each tool gets a user-owned entry file that loads the shared config first (see `link_configs` in `lib/tools.sh`); personal changes go in that file. `scripts/smoke-check.sh` enforces this.
 
+## Raineworks base rules
+
+This repository follows Raineworks' base rules, in [`.raineworks/base.md`](.raineworks/base.md): read them before
+changing anything. They're a copy of `base.md` in `raine-works/agents`, kept current by its sync: change them there,
+not here. Where this file is more specific, it wins.
+
+@.raineworks/base.md
+
 ## Layout
 
 ```
