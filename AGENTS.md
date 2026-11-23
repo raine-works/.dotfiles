@@ -18,8 +18,7 @@ not here. Where this file is more specific, it wins.
 
 How-tos and reasoning live in [`docs/`](docs/README.md), indexed by its README. [Development](docs/development.md)
 has the repository layout, how to add a tool, app or shared config, and how to test;
-[Configuration](docs/configuration.md) shows where each shared config is loaded from. A change that makes a doc wrong
-updates it in the same pull request.
+[Configuration](docs/configuration.md) shows where each shared config is loaded from.
 
 ## Conventions
 
