@@ -7,12 +7,28 @@ base value. Comments and trailing commas in the local file are tolerated (Zed
 writes JSONC) but are not preserved.
 """
 
+from __future__ import annotations
+
 import json
 import os
 import sys
+from typing import Any
 
 
-def strip_jsonc(text):
+def strip_jsonc(text: str) -> str:
+    """Turn JSONC text into plain JSON text.
+
+    Drops // and /* */ comments and trailing commas before } or ], leaving
+    string contents untouched. An unterminated block comment runs to the end
+    of the text. Never raises; the result is only valid JSON if the input was
+    valid JSONC.
+
+    Args:
+        text: JSONC source.
+
+    Returns:
+        The text without comments or trailing commas.
+    """
     out, i, n = [], 0, len(text)
     while i < n:
         c = text[i]
@@ -48,7 +64,20 @@ def strip_jsonc(text):
     return "".join(result)
 
 
-def load(path):
+def load(path: str) -> dict[str, Any]:
+    """Read a JSON or JSONC file into a dict.
+
+    Args:
+        path: File to read.
+
+    Returns:
+        The parsed object, or {} when the file is missing or holds only
+        whitespace and comments.
+
+    Raises:
+        json.JSONDecodeError: The file isn't valid JSONC.
+        OSError: The file exists but can't be read.
+    """
     if not os.path.exists(path):
         return {}
     with open(path, encoding="utf-8") as f:
@@ -56,7 +85,19 @@ def load(path):
     return json.loads(text) if text.strip() else {}
 
 
-def deep_merge(base, override):
+def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    """Merge override into base, recursing where both sides hold an object.
+
+    Any other value in override (lists included) replaces base's. Neither
+    argument is modified.
+
+    Args:
+        base: Values used where override has none.
+        override: Values that win.
+
+    Returns:
+        A new merged dict.
+    """
     merged = dict(base)
     for key, value in override.items():
         if isinstance(merged.get(key), dict) and isinstance(value, dict):
@@ -66,7 +107,18 @@ def deep_merge(base, override):
     return merged
 
 
-def main():
+def main() -> None:
+    """Merge the base file under the local one, as the module doc describes.
+
+    Reads <base> <local> [forced-key ...] from sys.argv. Leaves the local file
+    untouched when the merge changes nothing; otherwise moves it to
+    <local>.bak and writes the merged result, creating its directory if needed.
+
+    Raises:
+        IndexError: Fewer than two paths were given.
+        json.JSONDecodeError: Either file isn't valid JSONC.
+        OSError: A file can't be read or written.
+    """
     base_path, local_path, forced = sys.argv[1], sys.argv[2], sys.argv[3:]
     base, local = load(base_path), load(local_path)
     merged = deep_merge(base, local)
