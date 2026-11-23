@@ -1,0 +1,14 @@
+# What Issue to PR (issue-to-pr.yml) sets up before Claude works, so it can run this repository's checks: the same
+# tools the Shell Quality workflow installs.
+name: Setup
+description: The tools this repository's checks need, for Issue to PR
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y shellcheck zsh
+        sudo curl -fsSL -o /usr/local/bin/shfmt \
+          https://github.com/mvdan/sh/releases/download/v3.10.0/shfmt_v3.10.0_linux_amd64
+        sudo chmod +x /usr/local/bin/shfmt
