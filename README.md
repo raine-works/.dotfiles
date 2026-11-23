@@ -84,6 +84,10 @@ Each tool gets a file you own that loads the shared config first; your settings 
 
 Set `DOTFILES_REPO` (and optionally `DOTFILES_DIR`) before running `setup.sh` to install from a fork.
 
+## Documentation
+
+Guides for installing, customizing, updating and developing are in [docs/](docs/README.md).
+
 ## Checks
 
 ```bash
